@@ -63,11 +63,11 @@ function BankBar({ pxPerMm }: { pxPerMm: number }) {
   if (!info?.has) return null;
   const btn = { font: 'inherit', color: '#fff', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
     borderRadius: pxPerMm * 0.6, padding: `0 ${pxPerMm}px`, cursor: 'pointer' } as const;
-  const text = info.error ? info.error : info.name ? `${info.own ? 'Eigen bank' : `Bank ${info.knob}`}: ${info.name}` : 'Bank laden…';
+  const text = info.error ? info.error : info.name ? `${info.own ? 'Eigen bank' : `Bank ${info.knob}`}: ${info.name}${info.note ? ` (${info.note})` : ''}` : 'Bank laden…';
   return (
     <div style={{ position: 'fixed', left: pxPerMm * 2, right: pxPerMm * 2, bottom: pxPerMm * 1.5, display: 'flex', gap: pxPerMm, alignItems: 'center',
       padding: `${pxPerMm * 0.6}px ${pxPerMm}px`, borderRadius: pxPerMm, background: 'rgba(11,13,18,0.88)', border: '1px solid rgba(255,255,255,0.18)',
-      color: info.error ? '#fca5a5' : '#fff', font: `500 ${pxPerMm * 2.4}px/1.3 system-ui, sans-serif` }}>
+      color: info.error ? '#fca5a5' : info.note ? '#fcd34d' : '#fff', font: `500 ${pxPerMm * 2.4}px/1.3 system-ui, sans-serif` }}>
       <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={text}>{text}</span>
       <button type="button" style={btn} onClick={chooseBank} title="Een .mmbs kiezen; die gaat mee in het project">Eigen…</button>
       {info.own && <button type="button" style={btn} onClick={clearBank} title="Terug naar de bank van de Bank-knop">Knop</button>}

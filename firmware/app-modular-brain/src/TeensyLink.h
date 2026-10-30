@@ -455,7 +455,8 @@ private:
             const uint32_t crc  = doc["crc"]  | 0u;      // CRC32 (IEEE) over alle bytes; 0 = niet controleren
             const char* kind = doc["kind"] | "";
             const bool lyric = strcmp(kind, "lyric") == 0;
-            if (bank < 0 || bank > 15 || size < 44) { sendAckErr("bankPut: bank 0-15 en size nodig"); return; }
+            // Samplebanken 0-63 (SampleBank::kBanks), lyricbanken 0-15 (LyricStore).
+            if (bank < 0 || bank > (lyric ? 15 : 63) || size < 44) { sendAckErr(lyric ? "bankPut: bank 0-15 en size nodig" : "bankPut: bank 0-63 en size nodig"); return; }
             const int target = lyric ? kLyricBase + bank : bank;
             if (!onBankBegin_ || !onBankBegin_(target, size, crc)) { sendAckErr("bankPut: kan bestand niet openen (SD?)"); return; }
             rawBank_ = target; rawTotal_ = size; rawRemaining_ = size; rawMark_ = 0; rawLastMs_ = millis();
@@ -467,8 +468,8 @@ private:
         }
         if (strcmp(type, "bankDelete") == 0) {
             const int bank = doc["bank"] | -1;
-            if (bank < 0 || bank > 15) { sendAckErr("bankDelete: bank 0-15"); return; }
             const char* kind = doc["kind"] | "";
+            if (bank < 0 || bank > (strcmp(kind, "lyric") == 0 ? 15 : 63)) { sendAckErr("bankDelete: bank buiten bereik"); return; }
             const bool ok = onBankDelete_ && onBankDelete_(strcmp(kind, "lyric") == 0 ? kLyricBase + bank : bank);
             JsonDocument extra;
             extra["bank"] = bank;

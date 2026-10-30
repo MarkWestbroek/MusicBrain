@@ -15,6 +15,12 @@
 // editor/public/banks); een eigen bank (bestandskiezer in het paneel) gaat
 // mee in de projecttoestand en gaat voor de knop. Laden gebeurt op de
 // message-thread onder de callback-lock: het audioblok wacht zolang.
+//
+// Een knopbank wordt bewaard als nummer én bestandsnaam (eigenschappen
+// bankKnob/bankFile in de toestand). Bij het openen gaat de naam voor: staat
+// er op dat nummer intussen een andere bank, dan laadt de plugin toch het
+// bewaarde bestand, met een melding (BankInfo::note). Pas als de knop daarna
+// draait, geldt het nummer weer.
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
@@ -115,17 +121,21 @@ public:
     virtual bool applyBank(const void* /*data*/, std::size_t /*size*/, juce::String& error) { error = "geen bank"; return false; }
 
     // ── Bank: toestand voor het paneel ───────────────────────────────────
-    struct BankInfo { juce::String name, error; bool own = false; int knob = -1; };
+    struct BankInfo { juce::String name, error; bool own = false; int knob = -1; juce::String note; };
     BankInfo bankInfo() const { const juce::ScopedLock sl(bankLock_); return bankInfo_; }
     /** Tekst van de Bank-knop voor de DAW: "03 · Harp", met een eigen bank "Eigen · <naam>". */
     juce::String bankText(int knob) const {
         const juce::String dot = juce::String::fromUTF8(" \xc2\xb7 ");   // " · "
+        const juce::String nn = juce::String(knob).paddedLeft('0', 2);
         {
             const juce::ScopedLock sl(bankLock_);
             if (ownBank_.getSize() > 0) return "Eigen" + dot + (bankInfo_.own && bankInfo_.name.isNotEmpty() ? bankInfo_.name : ownName_);
+            // Vastgehouden bestand (uit het project) op deze knopstand.
+            if (wantFile_.isNotEmpty() && knob == wantKnob_)
+                return nn + dot + (bankInfo_.knob == knob && bankInfo_.name.isNotEmpty() ? bankInfo_.name : juce::File(wantFile_).getFileNameWithoutExtension());
         }
         const juce::String name = bankKnobName(knob);
-        return juce::String(knob).paddedLeft('0', 2) + dot + (name.isEmpty() ? juce::String("(leeg)") : name);
+        return nn + dot + (name.isEmpty() ? juce::String("(leeg)") : name);
     }
     /** Eigen bank uit een bestand; blijft in het project. */
     void loadOwnBank(const juce::File& file) {
@@ -196,7 +206,12 @@ public:
             in.readIntoMemoryBlock(bank, static_cast<size_t>(in.readInt64()));
         } else restoreXml(data, size);
         if (!hasBank()) return;
-        { const juce::ScopedLock sl(bankLock_); ownBank_ = std::move(bank); ownName_ = bankName; ownApplied_ = false; loadedKnob_ = -1; }
+        // Het bewaarde bestand van de knopbank (leeg in oudere projecten).
+        const juce::String file = state_.state.getProperty(kBankFile).toString();
+        const int knob = state_.state.getProperty(kBankKnob, -1);
+        if (file.isNotEmpty() && knob >= 0) bankKnob_.store(knob);
+        { const juce::ScopedLock sl(bankLock_); ownBank_ = std::move(bank); ownName_ = bankName; ownApplied_ = false; loadedKnob_ = -1;
+          wantFile_ = knob >= 0 ? file : juce::String(); wantKnob_ = knob; }
         applyCurrentBank();
     }
     const juce::String getName() const override { return juce::String("MMB ") + spec_.name; }
@@ -309,7 +324,7 @@ private:
         juce::MemoryBlock fromFile;
         const void* data = nullptr;
         std::size_t size = 0;
-        juce::String name;
+        juce::String name, note, loadedFile;
         bool own = false;
         const int knob = bankKnob_.load() < 0 ? 0 : bankKnob_.load();
         {
@@ -324,10 +339,24 @@ private:
             name = ownName_;
             data = ownCopy.getData(); size = ownCopy.getSize();
         } else {
-            const juce::File file = knobFile(knob);
+            juce::File file = knobFile(knob);
+            juce::String want;
+            {
+                const juce::ScopedLock sl(bankLock_);
+                if (wantFile_.isNotEmpty() && knob != wantKnob_) wantFile_.clear();   // de knop draaide: het nummer geldt
+                want = wantFile_;
+            }
+            const juce::String nn = juce::String(knob).paddedLeft('0', 2);
+            if (want.isNotEmpty() && file.getFileName() != want) {
+                const juce::File saved = bankDir().getChildFile(want);
+                if (saved.existsAsFile()) {
+                    note = "bewaard bestand " + want + (file.existsAsFile() ? "; op " + nn + " staat nu " + file.getFileNameWithoutExtension() : juce::String());
+                    file = saved;
+                } else note = want + " niet in de bankmap; dit is " + nn + " van nu";
+            }
             if (!file.existsAsFile()) {
                 const juce::ScopedLock sl(bankLock_);
-                bankInfo_ = { {}, "geen bank " + juce::String(knob) + " in " + bankDir().getFullPathName(), false, knob };
+                bankInfo_ = { {}, "geen bank " + juce::String(knob) + " in " + bankDir().getFullPathName(), false, knob, note };
                 loadedKnob_ = knob;
                 sendChangeMessage();
                 return;
@@ -335,6 +364,7 @@ private:
             if (!file.loadFileAsData(fromFile)) { setBankError("kan " + file.getFileName() + " niet lezen"); return; }
             data = fromFile.getData(); size = fromFile.getSize();
             name = file.getFileNameWithoutExtension();
+            loadedFile = file.getFileName();
         }
         const juce::String header = mmbsName(data, size);
         if (header.isNotEmpty()) name = header;
@@ -343,10 +373,16 @@ private:
         { const juce::ScopedLock cl(getCallbackLock()); ok = applyBank(data, size, error); }
         {
             const juce::ScopedLock sl(bankLock_);
-            bankInfo_ = { ok ? name : juce::String(), ok ? juce::String() : error, own, knob };
+            bankInfo_ = { ok ? name : juce::String(), ok ? juce::String() : error, own, knob, ok ? note : juce::String() };
             if (own) ownApplied_ = ok; else loadedKnob_ = knob;
         }
-        std::printf("[mmb] bank %s: %s\n", own ? "eigen" : juce::String(knob).toRawUTF8(), ok ? name.toRawUTF8() : error.toRawUTF8());
+        // Nummer en bestand in de toestand, zodat het project deze bank terugvindt.
+        if (ok && !own) {
+            state_.state.setProperty(kBankFile, loadedFile, nullptr);
+            state_.state.setProperty(kBankKnob, knob, nullptr);
+        }
+        std::printf("[mmb] bank %s: %s%s%s\n", own ? "eigen" : juce::String(knob).toRawUTF8(), ok ? name.toRawUTF8() : error.toRawUTF8(),
+                    note.isNotEmpty() ? " — " : "", note.toRawUTF8());
         std::fflush(stdout);
         sendChangeMessage();
     }
@@ -374,6 +410,9 @@ private:
     BankInfo bankInfo_;
     bool ownApplied_ = false;            // de eigen bank zit in de module
     int loadedKnob_ = -1;                // welke knopstand er nu in zit
+    juce::String wantFile_;              // bewaard bestand van de knopbank (uit het project)
+    int wantKnob_ = -1;                  // op welke knopstand dat bestand hoort
+    static inline const juce::Identifier kBankFile { "bankFile" }, kBankKnob { "bankKnob" };
     std::atomic<int> bankKnob_ { -1 };   // gevraagd door de audiothread
 };
 
@@ -503,6 +542,7 @@ private:
         o->setProperty("error", info.error);
         o->setProperty("own", info.own);
         o->setProperty("knob", info.knob);
+        o->setProperty("note", info.note);
         return juce::var(o);
     }
     void changeListenerCallback(juce::ChangeBroadcaster*) override {

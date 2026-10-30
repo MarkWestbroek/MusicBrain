@@ -11,6 +11,7 @@ import { useSyncExternalStore } from 'react';
 import type { ModularProject, ControlValue } from './types';
 import { defaultValueOf } from './types';
 import { cmiTeensyFrames } from './cmiSync';
+import { SAMPLE_BANKS } from './teensyStorage';
 import { flattenProjectForFirmware, polyControlTargets } from './polyExpand';
 
 // ── Web Serial type shims ──────────────────────────────────────────────
@@ -67,7 +68,7 @@ export interface DeviceStatus {
   sdOk?: boolean;     // SD-kaart gelezen bij het opstarten (zie teensyStorage.ts)
   sdFs?: number;      // 12/16/32 = FAT, 64 = exFAT
   sdMB?: number;      // grootte van de kaart in MB
-  sdBanks?: number;   // bit k = /mmb/banks/kk.mmbs staat erop
+  sdBanks?: number | number[];   // banknummers op de kaart (oude firmware: masker, bit k)
   sdBankNames?: string[];  // naam uit de kop van elke bank, op banknummer
   lyricNames?: string[];   // idem voor de lyricbanken van ZANG (/mmb/lyrics)
   sdTries?: number;   // bij de hoeveelste poging de kaart openging
@@ -259,7 +260,7 @@ function handleLine(line: string): void {
           sdOk:     typeof msg.sdOk === 'boolean' ? msg.sdOk : undefined,
           sdFs:     num(msg.sdFs),
           sdMB:     num(msg.sdMB),
-          sdBanks:  num(msg.sdBanks),
+          sdBanks:  Array.isArray(msg.sdBanks) ? msg.sdBanks.map(Number) : num(msg.sdBanks),
           sdBankNames: Array.isArray(msg.sdBankNames) ? msg.sdBankNames.map(String) : undefined,
           lyricNames: Array.isArray(msg.lyricNames) ? msg.lyricNames.map(String) : undefined,
           sdTries:  num(msg.sdTries),
@@ -661,7 +662,8 @@ export async function sendBank(bank: number, bytes: Uint8Array,
                                onProgress?: (bytes: number, size: number) => void,
                                kind: 'sample' | 'lyric' = 'sample'): Promise<void> {
   if (!writer) throw new Error('niet verbonden');
-  if (bank < 0 || bank > 15) throw new Error('bank 0-15');
+  const max = kind === 'lyric' ? 15 : SAMPLE_BANKS - 1;   // lyricbanken blijven 0-15
+  if (bank < 0 || bank > max) throw new Error(`bank 0-${max}`);
   const applied = (m: Record<string, unknown>, phase: string): boolean =>
     m.applied === 'bankPut' && m.phase === phase && Boolean(m.ok);
   const failed = (m: Record<string, unknown>): boolean =>

@@ -273,7 +273,7 @@ function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number
   if (hb) {
     if (hb.error) { text = hb.error; tone = 'warn'; }
     else if (hb.own) { text = `Eigen · ${hb.name}`; tone = 'ok'; }
-    else if (hb.knob === nn && hb.name) { text = `${String(nn).padStart(2, '0')} · ${hb.name}`; tone = 'ok'; }
+    else if (hb.knob === nn && hb.name) { text = `${String(nn).padStart(2, '0')} · ${hb.name}`; tone = hb.note ? 'warn' : 'ok'; }
     else { text = `${String(nn).padStart(2, '0')} · laden…`; tone = 'dim'; }
   }
   // Zonder Teensy: de serverbank die de simulator voor dit nummer laadt.
@@ -286,7 +286,7 @@ function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number
   return (
     <g>
       <title>{hb
-        ? 'Bank in de plugin: uit de bankmap (Bank-knop) of een eigen bank (Eigen… onderaan).'
+        ? `Bank in de plugin: uit de bankmap (Bank-knop) of een eigen bank (Eigen… onderaan).${hb.note ? ` Let op: ${hb.note}.` : ''}`
         : fromSim
         ? 'Bank in de simulator, van de server (Simulatie-tab: kies een andere). Met een Teensy aan de kabel staat hier de bank van de SD-kaart.'
         : 'Bank op de SD-kaart van de Teensy (/mmb/banks/NN.mmbs); de naam komt uit de bank zelf.'}</title>

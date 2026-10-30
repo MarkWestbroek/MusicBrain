@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("sc=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") ||
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("sc=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") || arg.startsWith("savestate=") || arg.startsWith("loadstate=") ||
             arg.startsWith("press=") || arg.startsWith("cc=") || arg.startsWith("at=") || arg.startsWith("seq=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
@@ -210,6 +210,16 @@ int main(int argc, char** argv) {
         std::printf("eigen bank %s (%zu bytes); toestand van de plugin terug: %zu bytes%s\n", f.getFileName().toRawUTF8(), bank.getSize(),
                     backInner.getSize(), backInner.getSize() > 4 && std::memcmp(backInner.getData(), "MMBP", 4) == 0 ? " (MMBP)" : "");
     }
+    // loadstate=<bestand>: de toestand zoals een DAW hem bij het openen van
+    // een project teruggeeft (eerder geschreven met savestate=).
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("loadstate=")) continue;
+        juce::MemoryBlock st;
+        if (!juce::File(arg.fromFirstOccurrenceOf("=", false, false)).loadFileAsData(st)) { std::fprintf(stderr, "kan %s niet lezen\n", arg.toRawUTF8()); return 1; }
+        plugin->setStateInformation(st.getData(), static_cast<int>(st.getSize()));
+        std::printf("toestand geladen (%zu bytes)\n", st.getSize());
+    }
     // Eén stil blok en de message-loop even laten lopen: parameters die iets
     // op de message-thread doen (de Bank-knop laadt een bestand) zijn dan klaar.
     {
@@ -219,6 +229,17 @@ int main(int argc, char** argv) {
         plugin->processBlock(warm, none);
         juce::MessageManager::getInstance()->runDispatchLoopUntil(300);
     }
+    // savestate=<bestand>: de toestand zoals een DAW hem in het project zet.
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("savestate=")) continue;
+        juce::MemoryBlock st;
+        plugin->getStateInformation(st);
+        juce::File(arg.fromFirstOccurrenceOf("=", false, false)).replaceWithData(st.getData(), st.getSize());
+        std::printf("toestand bewaard (%zu bytes)\n", st.getSize());
+    }
+    for (auto* p : plugin->getParameters())
+        if (p->getName(64) == "Bank") std::printf("na het laden: Bank = %s\n", p->getCurrentValueAsText().toRawUTF8());
     // instances=N: N-1 extra exemplaren met dezelfde toestand, blok om blok
     // tussen het eerste door gedraaid. Elk exemplaar hoort hetzelfde te
     // geven; een gedeelde (globale) gastheer valt hier door de mand.

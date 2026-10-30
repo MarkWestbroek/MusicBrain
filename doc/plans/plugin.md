@@ -335,7 +335,7 @@ Stap 1 van [plugin-patches.md](plugin-patches.md). Mark miste de Mellotron
 (TAPE STRIP) tussen de AU's. Die en de SAMPLER stonden in `EXCLUDE`, omdat
 ze uit een bank spelen die de editor laadt. Nu laadt de plugin de bank zelf.
 
-- **Bank-knop, zoals op de Teensy.** De knop (0–15) kiest een `.mmbs` uit
+- **Bank-knop, zoals op de Teensy.** De knop (0–63, sinds 2026-10-30; was 0–15) kiest een `.mmbs` uit
   de bankmap (`~/Library/Application Support/MusicBrain/banks`, op Windows
   `%APPDATA%\MusicBrain\banks`). Welk bestand bij welke stand hoort, staat
   in de `defaults` van `index.json`, dezelfde als in `editor/public/banks`.
@@ -346,6 +346,16 @@ ze uit een bank spelen die de editor laadt. Nu laadt de plugin de bank zelf.
   voorrang op de knop; "Knop" zet de knop terug. Toestand met eigen bank:
   `MMBP`, lengte en XML-blok, naam, lengte en de `.mmbs` zelf. Zonder eigen
   bank blijft het gewone JUCE-formaat, dus oude projecten openen gewoon.
+- **Knopbank vasthouden (2026-10-30).** Een knopbank wordt bewaard als
+  nummer én bestandsnaam (`bankKnob`/`bankFile` in de toestand). Bij het
+  openen gaat de naam voor: staat er op dat nummer intussen een andere
+  bank, dan laadt de plugin toch het bewaarde bestand, met een gele
+  melding op het paneel en in de bankbalk ("bewaard bestand
+  gu-warmpad.mmbs; op 03 staat nu gu-harp"). Is het bestand weg, dan het
+  nummer, met de melding dat het ontbreekt. Draait de knop daarna, dan
+  geldt het nummer weer. Projecten van vóór deze versie hebben alleen het
+  nummer. Testen: `MmbPluginCheck ... bank=3 savestate=s.bin`, dan
+  `loadstate=s.bin`.
 - **Hoe het laden gaat.** `AbiPlugin.h` (vlag `MMB_PLUGIN_BANK`, door de
   generator gezet voor gastheren met `mmb_zone_set`) leest de `.mmbs` met
   de structs uit `mmb_dsp/sample_bank.h` en roept dezelfde blob- en

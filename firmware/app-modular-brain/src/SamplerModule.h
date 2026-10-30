@@ -7,7 +7,7 @@
  * **Bank.** `SampleBank` laadt één `.mmbs`-bestand (zie `mmb_dsp/sample_bank.h`)
  * van de SD-kaart naar PSRAM: samples én keymap in één blok, zonder parser.
  * De editor schrijft dat bestand (🎹 Multisample-import); kopieer het naar
- * `/mmb/banks/NN.mmbs` op de SD. De `bank`-control kiest NN (0–15).
+ * `/mmb/banks/NN.mmbs` op de SD. De `bank`-control kiest NN (0–63, sinds fw 0.5.119; was 0–15).
  *
  * **Streamen (sinds fw 0.5.66).** De bank hoeft niet in het geheugen te
  * passen: elk sample krijgt een *kop* in PSRAM (standaard 0,5 s, minder als
@@ -42,7 +42,7 @@
  * verlaat de module niet, dus stereo en quad blijven intact. Auto-wah is de
  * multikabel env_k → cutoff_k in de patcher.
  * | out | `out_l` `out_r` `out_3` `out_4` | Audio | mono → L+R, stereo → 1/2, quad → 1–4 |
- * Controls: `bank` (0–15), `coarse` (semi), `fine` (ct), `start` (0..1),
+ * Controls: `bank` (0–63), `coarse` (semi), `fine` (ct), `start` (0..1),
  * `attack` (ms; telt op bij de opkomst die de zone zelf meebrengt),
  * `level` (0..1), `limit` (1 = limiter + zachte begrenzing op de som, 0 =
  * hard afknippen op ±1; zie mmb_dsp/limiter.h).
@@ -56,6 +56,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string_view>
+#include <strings.h>   // strcasecmp
 
 #include "mmb_dsp/limiter.h"
 #include "mmb_dsp/sample_player.h"
@@ -77,6 +78,8 @@ public:
     static constexpr int kMaxSlots = 256;
     static constexpr int kMaxZones = 512;
     static constexpr const char* kDir = "/mmb/banks";
+    /** Aantal banknummers: `/mmb/banks/00..63.mmbs` (de Bank-knop, de link). */
+    static constexpr int kBanks = 64;
 
     static SampleBank& instance() { static SampleBank b; return b; }
 
@@ -143,10 +146,10 @@ public:
     /** Grootte van de kaart in MB (0 = geen kaart). */
     uint32_t sizeMB()   const { return sizeMB_; }
     /** Welke banken er op de kaart staan: bit k = `/mmb/banks/kk.mmbs`. */
-    uint16_t bankMask() const { return bankMask_; }
+    uint64_t bankMask() const { return bankMask_; }
     /** Naam uit de kop van bank k ("" als die bank er niet staat, "?" als het
      *  bestand er wel staat maar geen geldige bank is). */
-    const char* bankName(int k) const { return (k >= 0 && k < 16) ? names_[k] : ""; }
+    const char* bankName(int k) const { return (k >= 0 && k < kBanks) ? names_[k] : ""; }
     uint32_t version() const { return version_; }
     int loadedBank() const { return loaded_; }
 
@@ -158,7 +161,7 @@ public:
     // ── upload via de link ──────────────────────────────────────────────
     /** Begin: `/mmb/banks/NN.part` openen (afgekapt, vooraf gereserveerd). */
     bool uploadBegin(int bank, uint32_t size, uint32_t crc32 = 0) {
-        if (bank < 0 || bank > 15) return false;
+        if (bank < 0 || bank >= kBanks) return false;
         upCrcWant_ = crc32; upCrc_ = 0xFFFFFFFFu;
         if (!sdOk_ && !mountIfMissing(true)) return false;
         if (upFile_) upFile_.close();
@@ -256,7 +259,7 @@ public:
     }
     /** `NN.mmbs` van de kaart halen; was hij geladen, dan zwijgt de sampler. */
     bool deleteBank(int bank) {
-        if (bank < 0 || bank > 15 || !sdOk_) return false;
+        if (bank < 0 || bank >= kBanks || !sdOk_) return false;
         char dst[40];
         snprintf(dst, sizeof(dst), "%s/%02d.mmbs", kDir, bank);
         if (loaded_ == bank) { numSlots_ = numZones_ = 0; ++version_; delay(6); if (file_) file_.close(); loaded_ = -1; }
@@ -629,8 +632,8 @@ private:
     bool     sdOk_ = false, inPsram_ = false;
     uint8_t  fsType_ = 0;
     uint32_t sizeMB_ = 0;
-    uint16_t bankMask_ = 0;
-    char     names_[16][29] = {};
+    uint64_t bankMask_ = 0;
+    char     names_[kBanks][29] = {};   // 64 × 29 = 1,9 KB
     int      sdTries_ = 0;
     uint32_t sdMs_ = 0, lastTryMs_ = 0;
     uint8_t  sdErr_ = 0;
@@ -655,12 +658,17 @@ private:
         if (!sdOk_) return;
         fsType_ = SD.sdfs.fatType();
         sizeMB_ = static_cast<uint32_t>(SD.totalSize() / (1024ull * 1024ull));
-        char path[40];
-        for (int i = 0; i < 16; ++i) {
-            snprintf(path, sizeof(path), "%s/%02d.mmbs", kDir, i);
-            File f = SD.open(path, FILE_READ);
-            if (!f) continue;
-            bankMask_ |= static_cast<uint16_t>(1u << i);
+        // De map één keer doorlopen in plaats van 64 namen te proberen: alleen
+        // "NN.mmbs" telt (twee cijfers, NN < kBanks).
+        File dir = SD.open(kDir);
+        if (!dir) return;
+        for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+            const char* n = f.name();
+            const bool isBank = !f.isDirectory() && std::strlen(n) == 7 && n[0] >= '0' && n[0] <= '9' && n[1] >= '0' && n[1] <= '9'
+                             && strcasecmp(n + 2, ".mmbs") == 0;
+            const int i = isBank ? (n[0] - '0') * 10 + (n[1] - '0') : -1;
+            if (i < 0 || i >= kBanks) { f.close(); continue; }
+            bankMask_ |= uint64_t{1} << i;
             // Alleen de kop (44 bytes): de naam die de importer erin zette,
             // zodat het display laat zien wat er écht op de kaart staat.
             mmb_dsp::BankHeader h{};
@@ -672,6 +680,7 @@ private:
             names_[i][sizeof(h.name)] = '\0';
             for (char* c = names_[i]; *c; ++c) if (static_cast<unsigned char>(*c) < 0x20) *c = '?';
         }
+        dir.close();
     }
 };
 
@@ -689,7 +698,7 @@ public:
 
     void setBank(int b) {
         if (b < 0) b = 0;
-        if (b > 15) b = 15;
+        if (b > SampleBank::kBanks - 1) b = SampleBank::kBanks - 1;
         if (b == bank_) return;
         bank_ = b;
         SampleBank::instance().load(bank_);

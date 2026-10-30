@@ -17,6 +17,21 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-30 — fw 0.5.119: 64 samplebanken (was 16)
+<!-- EN: fw 0.5.119: 64 sample banks (was 16) -->
+- De Bank-knop van SAMPLER, TAPE STRIP en PERCUTER loopt van 00 tot 63:
+  `/mmb/banks/00..63.mmbs` op de SD-kaart (`SampleBank::kBanks`). Upload
+  (`bankPut`) en wissen gaan ook tot 63; lyricbanken (ZANG) blijven 0–15.
+- Bij het opstarten leest de firmware de bankmap één keer door in plaats
+  van elk nummer te proberen. De status meldt `sdBanks` nu als lijst van
+  nummers (64 bits passen niet betrouwbaar in een JSON-getal); de editor
+  leest ook nog het oude masker. Namenlijst `sdBankNames` tot de hoogste.
+- RAM1: 1,4 KB meer voor de namen (64 × 29); nog 22,9 KB vrij.
+- Standaardindeling (`editor/scripts/bank-index.mjs`): de 15 banken zonder
+  nummer kregen 16–30, zodat simulator en plugin ze met de knop kiezen.
+  **Op de kaart van de Teensy staan ze nog niet**: met `bank_put.py`
+  erop zetten als hij terug is. Nog niet geflasht (Teensy is weg).
+
 ### 2026-10-29 — fw 0.5.118: MIDI-IN krijgt een aanslagcurve
 <!-- EN: fw 0.5.118: MIDI-IN gets a velocity curve -->
 - Nieuwe schakelaar **Vel** (`velcurve`) op MIDI-IN: hoe de velocity van
@@ -85,6 +100,20 @@
   sidechain, SC HP, gate ook in bypass, Listen/Mix/Bypass, mono, 96 kHz).
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
+
+### 2026-10-30 — Plugins: de knopbank blijft die je bewaarde; 64 banken
+<!-- EN: Plugins: a saved bank stays the same bank even if the bank folder changes; 64 banks -->
+- SAMPLER en TAPESTRIP bewaren een knopbank als nummer én bestandsnaam.
+  Staat er bij het openen op dat nummer een andere bank (andere bankmap,
+  andere computer), dan klinkt toch de bewaarde bank, met een gele melding
+  op het paneel. Ontbreekt het bestand, dan het nummer met de melding.
+  Draai je de knop, dan geldt het nummer weer. Details:
+  [plugin.md](plans/plugin.md) ("Knopbank vasthouden").
+- De Bank-knop loopt tot 63 (fw 0.5.119); 16–30 zijn nu ook te kiezen,
+  bijvoorbeeld 21 "Orchestral Harp". Kopieer `editor/public/banks/index.json`
+  naar de bankmap (gedaan op deze Mac).
+- `MmbPluginCheck` kreeg `savestate=` en `loadstate=`. auval SAMPLER en
+  TAPESTRIP geslaagd.
 
 ### 2026-10-30 — Plugins: sidechain voor PUMP en Bus comp
 <!-- EN: Plugins: PUMP and Bus comp get a DAW sidechain input -->

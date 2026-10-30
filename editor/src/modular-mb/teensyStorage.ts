@@ -11,8 +11,9 @@ export interface StorageStatus {
   /** 12/16/32 = FAT, 64 = exFAT, 0 = geen. */
   sdFs?: number;
   sdMB?: number;
-  /** Bit k = `/mmb/banks/kk.mmbs` staat op de kaart. */
-  sdBanks?: number;
+  /** Welke `/mmb/banks/kk.mmbs` er op de kaart staan: een lijst van nummers
+   *  (fw ≥ 0.5.119, 64 banken), of bij oudere firmware een masker (bit k). */
+  sdBanks?: number | number[];
   /** Naam uit de kop van elke bank, op banknummer; "" = staat er niet,
    *  "?" = bestand staat er maar is geen geldige bank. */
   sdBankNames?: string[];
@@ -32,10 +33,14 @@ export function fsName(type: number | undefined): string {
   }
 }
 
-/** Banknummers uit het bitmasker, oplopend. */
-export function bankList(mask: number | undefined): number[] {
+/** Aantal banknummers op de kaart: /mmb/banks/00..63 (fw 0.5.119; daarvoor 16). */
+export const SAMPLE_BANKS = 64;
+
+/** Banknummers oplopend: uit de lijst van de firmware, of uit het oude 16-bits masker. */
+export function bankList(banks: number | number[] | undefined): number[] {
+  if (Array.isArray(banks)) return [...banks].filter((k) => Number.isInteger(k) && k >= 0 && k < SAMPLE_BANKS).sort((a, b) => a - b);
   const out: number[] = [];
-  for (let k = 0; k < 16; k++) if (((mask ?? 0) >> k) & 1) out.push(k);
+  for (let k = 0; k < 16; k++) if (((banks ?? 0) >> k) & 1) out.push(k);
   return out;
 }
 

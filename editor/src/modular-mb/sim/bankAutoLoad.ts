@@ -1,5 +1,5 @@
 // Samplebank vanzelf in de simulator (ED-SIM-BANK) — de bank die een
-// SAMPLER-module met zijn Bank-knop (NN, 0–15) aanwijst wordt van de server
+// SAMPLER-module met zijn Bank-knop (NN, 0–63) aanwijst wordt van de server
 // gehaald (public/banks/, zie banks/index.json) en in de sampler-wasm gezet.
 // Niemand hoeft meer via 🎹 Multisample een bestand van schijf te kiezen.
 //
@@ -46,7 +46,8 @@ export function banksVersion(): number { return version; }
 
 // ── in een plugin: de bank die de plugin zelf laadde (plugin-ui/main.tsx) ──
 /** Wat de plugin meldt (MmbPluginBase.h, bankVar): daar is geen Teensy en geen server. */
-export interface HostBank { name: string; error: string; own: boolean; knob: number }
+/** note: de bank wijkt af van het nummer (bewaard bestand, of dat ontbreekt); MmbPluginBase.h. */
+export interface HostBank { name: string; error: string; own: boolean; knob: number; note?: string }
 let host: HostBank | null = null;
 export function setHostBank(b: HostBank | null): void { host = b; emit(); }
 export function hostBank(): HostBank | null { return host; }

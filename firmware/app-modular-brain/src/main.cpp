@@ -451,7 +451,12 @@ void onGetStatus(JsonObject s) {
         s["sdOk"]    = bank.sdOk();
         s["sdFs"]    = bank.fsType();
         s["sdMB"]    = bank.sizeMB();
-        s["sdBanks"] = bank.bankMask();
+        // Lijst van banknummers (sinds 0.5.119; was een 16-bits masker): 64
+        // bits passen niet betrouwbaar in een JSON-getal voor JavaScript.
+        {
+            JsonArray list = s["sdBanks"].to<JsonArray>();
+            for (int k = 0; k < mmb_link::SampleBank::kBanks; ++k) if ((bank.bankMask() >> k) & 1u) list.add(k);
+        }
         s["sdTries"] = bank.sdTries();
         s["sdMs"]    = bank.sdMs();
         if (!bank.sdOk()) s["sdErr"] = bank.sdErr();
@@ -459,7 +464,7 @@ void onGetStatus(JsonObject s) {
         // niet), tot en met de hoogste bank die er is. Voor het display op
         // het sampler-paneel.
         int last = -1;
-        for (int k = 0; k < 16; ++k) if (bank.bankMask() & (1u << k)) last = k;
+        for (int k = 0; k < mmb_link::SampleBank::kBanks; ++k) if ((bank.bankMask() >> k) & 1u) last = k;
         if (last >= 0) {
             JsonArray names = s["sdBankNames"].to<JsonArray>();
             for (int k = 0; k <= last; ++k) names.add(bank.bankName(k));

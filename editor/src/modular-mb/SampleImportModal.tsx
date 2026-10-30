@@ -19,6 +19,7 @@ import {
 import { WasmModule, type WasmZone } from './runtime';
 import { buildBank, parseBank, bankSummary, type BankSlot } from './sampleBank';
 import { sendBank, useTeensyLink } from './teensyLink';
+import { SAMPLE_BANKS } from './teensyStorage';
 import { readSf2, sf2ToBank, type Sf2 } from './sf2';
 
 const TYPE_ID = 'tp_mmb_sampler';
@@ -340,7 +341,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
       <label title={linked ? 'Rechtstreeks naar /mmb/banks/NN.mmbs op de SD-kaart van de Teensy' : 'Verbind eerst met de Teensy (Teensy-link)'}>
         bank{' '}
         <select value={targetBank} onChange={(e) => setTargetBank(Number(e.target.value))} disabled={!linked}>
-          {Array.from({ length: 16 }, (_, i) => {
+          {Array.from({ length: SAMPLE_BANKS }, (_, i) => {
             const name = link.lastStatus?.sdBankNames?.[i];
             return <option key={i} value={i}>{String(i).padStart(2, '0')}{name ? ` · ${name}` : ''}</option>;
           })}

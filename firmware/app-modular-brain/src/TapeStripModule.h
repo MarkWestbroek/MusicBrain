@@ -48,7 +48,7 @@ public:
 
     void setBank(int b) {
         if (b < 0) b = 0;
-        if (b > 15) b = 15;
+        if (b > SampleBank::kBanks - 1) b = SampleBank::kBanks - 1;
         if (b == bank_) return;
         bank_ = b;
         SampleBank::instance().load(bank_);

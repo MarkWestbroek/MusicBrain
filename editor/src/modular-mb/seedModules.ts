@@ -1452,7 +1452,7 @@ function mmbSampler() {
       { x: 3, y: 121, text: 'Vel',   fontSize: 1.0, color: '#9ca3af', align: 'start' },
     ],
     items: [
-      knob('bank',   'Bank',   w*0.10, 28, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
+      knob('bank',   'Bank',   w*0.10, 28, { size: 'medium', min: 0, max: 63, def: 0, step: 1, color: '#f5a623', ticks: { every: 8, highlight: [0, 63] } }),
       knob('level',  'Level',  w*0.25, 28, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       knob('coarse', 'Coarse', w*0.40, 28, { size: 'small', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
       knob('fine',   'Fine',   w*0.52, 28, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
@@ -1527,7 +1527,7 @@ function mmbTapeStrip() {
       { x: 3, y: 121, text: 'Vel',   fontSize: 1.0, color: '#9ca3af', align: 'start' },
     ],
     items: [
-      knob('bank',    'Bank',    w*0.10, 30, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
+      knob('bank',    'Bank',    w*0.10, 30, { size: 'medium', min: 0, max: 63, def: 0, step: 1, color: '#f5a623', ticks: { every: 8, highlight: [0, 63] } }),
       knob('length',  'Length',  w*0.27, 30, { size: 'medium', min: 1, max: 8, def: 8, unit: 's', color: '#fbbf24' }),
       knob('return',  'Return',  w*0.44, 30, { size: 'medium', min: 0.1, max: 4, def: 1, unit: 's', color: '#fbbf24' }),
       knob('contact', 'Contact', w*0.61, 30, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#fbbf24' }),
@@ -5018,7 +5018,7 @@ function mmbPercuter() {
       { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      knob('bank', 'Bank', w*0.10, 25, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
+      knob('bank', 'Bank', w*0.10, 25, { size: 'medium', min: 0, max: 63, def: 0, step: 1, color: '#f5a623', ticks: { every: 8, highlight: [0, 63] } }),
       knob('tune', 'Tune', w*0.72, 25, { size: 'small', min: -12, max: 12, def: 0, unit: 'semi', color: '#f9fafb' }),
       toggle('filter', 'Filter', w*0.84, 23, true),
       knob('level', 'Level', w*0.94, 25, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),

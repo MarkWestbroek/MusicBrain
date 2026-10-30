@@ -13,6 +13,8 @@ describe('Teensy-opslag in de statusbalk', () => {
     expect(bankList(0)).toEqual([]);
     expect(bankList(0b1001)).toEqual([0, 3]);
     expect(bankList(1 << 15)).toEqual([15]);
+    // fw ≥ 0.5.119: een lijst, tot en met 63.
+    expect(bankList([40, 3, 63, 64])).toEqual([3, 40, 63]);
   });
 
   it('vat de kaart samen', () => {

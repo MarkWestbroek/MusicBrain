@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Schrijft editor/public/banks/index.json: welke samplebanken de server heeft
 // (bestand, naam uit de kop, grootte) en welk bestand de simulator standaard
-// laadt voor bank-knop NN (0–15). De simulator gebruikt dit om de bank van
+// laadt voor bank-knop NN (0–63). De simulator gebruikt dit om de bank van
 // een sampler zelf op te halen (sim/bankAutoLoad.ts); met een Teensy aan de
 // kabel wint de bank met dezelfde naam als op de SD-kaart.
 //
@@ -57,6 +57,23 @@ const SD_BANKS = {
   13: 'gu-koto.mmbs',
   14: 'elements.mmbs',
   15: 'ydp-grand.mmbs',                                  // Grand Piano, 115 MB
+  // 16–30 (fw 0.5.119, 64 banken): de rest van public/banks. Nog niet op de
+  // kaart van de Teensy; zet ze erop met bank_put.py als hij terug is.
+  16: 'gu-atmosphere.mmbs',
+  17: 'gu-bowed-glass.mmbs',
+  18: 'gu-church-bells.mmbs',
+  19: 'gu-fantasia.mmbs',
+  20: 'gu-flute.mmbs',
+  21: 'gu-harp.mmbs',
+  22: 'gu-ice-rain.mmbs',
+  23: 'gu-nylon-guitar.mmbs',
+  24: 'gu-pizzicato.mmbs',
+  25: 'gu-recorder.mmbs',
+  26: 'gu-steeldrums.mmbs',
+  27: 'gu-strings.mmbs',
+  28: 'gu-taiko.mmbs',
+  29: 'handdrum 2 velocities normalised v2.mmbs',
+  30: 'small bells trimmed normalised v3.mmbs',
 };
 const defaults = {};
 for (const [nn, file] of Object.entries(SD_BANKS)) {

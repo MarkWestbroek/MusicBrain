@@ -21,7 +21,7 @@ export const resizeTo: (heightPx: number) => void = inPlugin
   : () => {};
 
 /** Bank van de plugin (sampler, TAPE STRIP); zie MmbPluginBase.h. */
-export interface BankInfo { has: boolean; name: string; error: string; own: boolean; knob: number }
+export interface BankInfo { has: boolean; name: string; error: string; own: boolean; knob: number; note?: string }
 
 type JuceBackend = { addEventListener(id: string, fn: (payload: unknown) => void): unknown };
 
