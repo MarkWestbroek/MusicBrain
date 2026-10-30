@@ -56,7 +56,7 @@ find_package(Python3 COMPONENTS Interpreter)
 # De wasm-gastheren worden gecompileerd zoals in tools/mmb-wasm/build.sh:
 # -DTEST, cstdio vooraf ingevoegd, de shim-map en de MI-fallbacks als include.
 function(mmb_add_module target code product synth source)
-  cmake_parse_arguments(A "" "W2C" "CATEGORIES;INCLUDES;SOURCES;GLOBS;DEFINES;W2CMODS" ${ARGN})
+  cmake_parse_arguments(A "NOLTO" "W2C" "CATEGORIES;INCLUDES;SOURCES;GLOBS;DEFINES;W2CMODS" ${ARGN})
   if(NOT A_CATEGORIES)
     set(A_CATEGORIES Fx)
   endif()
@@ -131,16 +131,27 @@ function(mmb_add_module target code product synth source)
   endif()
   target_link_libraries(${target}
     PRIVATE MmbWebUi juce::juce_audio_utils juce::juce_gui_extra
-    PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
+    PUBLIC juce::juce_recommended_config_flags)
+  # NOLTO: MMB Patch heeft alle modules; met LTO duurt het linken uren.
+  if(NOT A_NOLTO)
+    target_link_libraries(${target} PUBLIC juce::juce_recommended_lto_flags)
+  endif()
 endfunction()
 
-# Handgeschreven (eigen MIDI- of kernvertaling):
-mmb_add_module(MmbHall Hall "MMB HALL" FALSE src/HallPlugin.cpp CATEGORIES Fx Reverb)
-mmb_add_module(MmbSid  Sid1 "MMB SID"  TRUE  src/SidPlugin.cpp  CATEGORIES Instrument Synth)
-# Gegenereerd: één regel per module (uniforme kern of wasm-gastheer).
-include(${MMB_GENERATED_DIR}/modules.cmake OPTIONAL)
-# Patch-plugins (editor/scripts/pluginPatches.ts): een hele patch, front als parameters.
-include(${MMB_GENERATED_DIR}/patches.cmake OPTIONAL)
+# MMB_ONLY_PATCH=ON: alleen MMB Patch en de controle (een eigen bouwmap;
+# configureren met alle modules duurt lang).
+option(MMB_ONLY_PATCH "Alleen MMB Patch bouwen" OFF)
+if(NOT MMB_ONLY_PATCH)
+  # Handgeschreven (eigen MIDI- of kernvertaling):
+  mmb_add_module(MmbHall Hall "MMB HALL" FALSE src/HallPlugin.cpp CATEGORIES Fx Reverb)
+  mmb_add_module(MmbSid  Sid1 "MMB SID"  TRUE  src/SidPlugin.cpp  CATEGORIES Instrument Synth)
+  # Gegenereerd: één regel per module (uniforme kern of wasm-gastheer).
+  include(${MMB_GENERATED_DIR}/modules.cmake OPTIONAL)
+  # Patch-plugins (editor/scripts/pluginPatches.ts): een hele patch, front als parameters.
+  include(${MMB_GENERATED_DIR}/patches.cmake OPTIONAL)
+endif()
+# MMB Patch: elke patch in één plugin (GenericPatch.h).
+include(${MMB_GENERATED_DIR}/patch_generic.cmake OPTIONAL)
 
 # ── Controle zonder DAW: laadt een VST3, speelt/rendert, schrijft wav ─────
 juce_add_console_app(MmbPluginCheck PRODUCT_NAME "mmb-plugin-check")

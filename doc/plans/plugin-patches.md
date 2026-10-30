@@ -187,6 +187,14 @@ weg.
 
 ## 5. Stap 3 en 4: de patch-plugin
 
+**Stand 2026-10-30: stap 4 staat.** "MMB Patch" is één plugin voor elke
+patch: kies er een uit de catalogus (Basisset, Poly, Solo) of open een
+project uit de editor (.json, de actieve patch). Details en metingen:
+[plugin.md](plugin.md), "MMB Patch". Van de 125 catalogpatches klinken er
+71; de rest wacht op twee dingen in de motor: modules op een andere rate of
+blokgrootte (Plaits, Rings, Peaks, Elements, Clouds, DX7, Warps: 46
+patches) en banken (Sampler, Mellotron, Zang: 8 patches).
+
 **Stand 2026-10-29:** stap 3 staat. "MMB Poly 8" en "MMB CS-80 Brass" zijn
 plugins, met MIDI-IN, aftertouch en modwheel zoals op de Teensy. Zie
 [plugin.md](plugin.md), "Patch-plugins". Poly 8 heeft een front; de

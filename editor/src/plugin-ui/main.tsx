@@ -5,6 +5,9 @@
 // Patch-plugins (`?type=patch_…`, src/modular-mb/patchPlugins.ts): de fronts
 // van de patch als tabs, met als laatste Expert (alle knoppen per module);
 // de relays dragen de ids van pluginParams() (patchPlugins.ts).
+// MMB Patch (`?type=patch_generic`, GenericPatch.h): elke patch, gekozen in
+// de balk bovenaan (catalogus of een projectbestand); de knoppen hangen aan
+// vaste slots s001.. (patchPluginConfig.ts).
 
 import { StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -13,15 +16,19 @@ import '../tokens.css';
 import { ModulePanel } from '../modular-mb/ModulePanel';
 import { buildFrontModule, frontControlState } from '../modular-mb/frontLayout';
 import { controlHelp } from '../modular-mb/moduleHelp';
-import { PATCH_CATALOG } from '../modular-mb/patchCatalog';
+import { PATCH_CATALOG, type CatalogEntry } from '../modular-mb/patchCatalog';
 import {
   PATCH_PLUGINS, TAB_BAR_MM, expertModules, patchPluginTypeId, pluginFronts, pluginPanelSize, pluginParams,
   type ExpertModule, type PluginParam,
 } from '../modular-mb/patchPlugins';
+import { PATCH_SLOTS, fromSlot, patchPluginConfig, slimProject, slotSpec, toSlot } from '../modular-mb/patchPluginConfig';
 import { seedInternals } from '../modular-mb/seedModules';
 import { setHostBank, setHostBankList } from '../modular-mb/sim/bankAutoLoad';
-import { emptyModularProject, type Control, type ControlValue } from '../modular-mb/types';
-import { attach, bankList, chooseBank, clearBank, inPlugin, log, resizeTo, watchBank, type BankInfo, type Handle, type Kind } from './juceBridge';
+import { emptyModularProject, type Control, type ControlValue, type ModularProject, type Patch } from '../modular-mb/types';
+import {
+  attach, bankList, chooseBank, choosePatchFile, clearBank, inPlugin, log, patchGet, patchLoad, resizeTo, watchBank, watchPatchFile,
+  type BankInfo, type Handle, type Kind,
+} from './juceBridge';
 
 // Het venster is vergrootbaar met vaste verhouding (MmbPluginBase.h); de
 // schaal volgt de hoogte, want elk paneel is 128,5 mm hoog.
@@ -252,17 +259,33 @@ function ExpertView({ modules, state, onChange, pxPerMm, height }: {
   );
 }
 
-/** Een patch-plugin: de fronts van de patch als tabs. Elke knop is een
- *  parameter van de plugin (de motor zet hem op alle stemmen). */
+/** De actieve patch van een project (of de laatste). */
+const activePatch = (project: ModularProject): Patch =>
+  project.patches.find((x) => x.id === project.activePatchId) ?? project.patches[project.patches.length - 1]!;
+
+/** Alles wat de bediening van een patch toont. */
+function buildView(project: ModularProject, patch: Patch) {
+  return { project, patch, fronts: pluginFronts(project, patch), params: pluginParams(project, patch), expert: expertModules(project, patch), size: pluginPanelSize(project, patch) };
+}
+type PatchViewData = ReturnType<typeof buildView>;
+
+/** Een vaste patch-plugin (Poly 8, CS-80): de seed uit PATCH_PLUGINS. */
 function PatchApp({ typeId }: { typeId: string }) {
   const entry = PATCH_PLUGINS.find((p) => patchPluginTypeId(p.target) === typeId);
   const built = useMemo(() => {
     const seed = entry && PATCH_CATALOG.find((e) => e.label === entry.label);
     if (!seed) return null;
     const project = seed.build(seedInternals(emptyModularProject()));
-    const patch = project.patches.find((x) => x.id === project.activePatchId) ?? project.patches[project.patches.length - 1]!;
-    return { project, patch, fronts: pluginFronts(project, patch), params: pluginParams(project, patch), expert: expertModules(project, patch), size: pluginPanelSize(project, patch) };
+    return buildView(project, activePatch(project));
   }, [entry]);
+  if (!built) return <p style={{ color: '#f87171' }}>Onbekende patch: {typeId}</p>;
+  return <PatchView built={built} slots={false} topPx={0} />;
+}
+
+/** De fronts van de patch als tabs, met Expert als laatste. Elke knop is een
+ *  parameter van de plugin (de motor zet hem op alle stemmen): op eigen id
+ *  (vaste patch-plugin), of op slot i (MMB Patch, @p slots). */
+function PatchView({ built, slots, topPx }: { built: PatchViewData; slots: boolean; topPx: number }) {
   // Stand per (module, knop), zoals patch.controlState.
   const [state, setState] = useState<Record<string, Record<string, ControlValue>>>(() => built?.patch.controlState ?? {});
   const [tab, setTab] = useState(() => Number(new URLSearchParams(window.location.search).get('tab') ?? 0));   // ?tab= voor schermafdrukken
@@ -271,31 +294,39 @@ function PatchApp({ typeId }: { typeId: string }) {
   const [pxPerMm, setPxPerMm] = useState(1);
 
   useEffect(() => {
-    if (!built) return;
-    const fit = () => setPxPerMm(Math.max(0.5, Math.min(window.innerWidth / built.size.widthMm, window.innerHeight / built.size.heightMm)));
+    const fit = () => setPxPerMm(Math.max(0.5, Math.min(window.innerWidth / built.size.widthMm, (window.innerHeight - topPx) / built.size.heightMm)));
     fit();
     window.addEventListener('resize', fit);
     return () => window.removeEventListener('resize', fit);
-  }, [built]);
+  }, [built, topPx]);
 
   useEffect(() => {
-    if (!built) return;
     let received = false;
+    const put = (p: PluginParam, v: ControlValue) => {
+      received = true;
+      setState((s) => ({ ...s, [p.moduleId]: { ...s[p.moduleId], [p.controlId]: v } }));
+    };
+    let slot = 0;
     for (const p of built.params) {
+      if (slots) {
+        // Slot i = de i-de knop met een spec, zoals patchPluginConfig ze telt.
+        const spec = slotSpec(p.control);
+        if (!spec) continue;
+        if (slot >= PATCH_SLOTS) break;
+        const h = attach(`s${String(++slot).padStart(3, '0')}`, 'slider', (raw) => put(p, fromSlot(spec, Number(raw))));
+        handles.current[p.id] = { set: (v) => h.set(toSlot(spec, v as ControlValue)), refresh: h.refresh };
+        continue;
+      }
       const kind: Kind = p.control.kind === 'switch' ? 'combo' : p.control.kind === 'toggle' ? 'toggle' : 'slider';
-      handles.current[p.id] = attach(p.id, kind, (v) => {
-        received = true;
-        setState((s) => ({ ...s, [p.moduleId]: { ...s[p.moduleId], [p.controlId]: v } }));
-      });
+      handles.current[p.id] = attach(p.id, kind, (v) => put(p, v));
     }
     // Zie App: de beginstand komt tijdens het laden niet altijd aan.
     const timers = [150, 500, 1500, 4000].map((ms) => window.setTimeout(() => {
       if (!received) for (const h of Object.values(handles.current)) h.refresh();
     }, ms));
     return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [built]);
+  }, [built, slots]);
 
-  if (!built) return <p style={{ color: '#f87171' }}>Onbekende patch: {typeId}</p>;
   const { project, fronts, params, expert, size } = built;
   const patch = { ...built.patch, controlState: state };
   // Eén schrijfpad: stand bijwerken en de parameter zetten (de motor doet de stemmen).
@@ -326,7 +357,7 @@ function PatchApp({ typeId }: { typeId: string }) {
         </div>
       )}
       {onExpert || !fm ? (
-        <ExpertView modules={expert} state={state} onChange={change} pxPerMm={pxPerMm} height={window.innerHeight - tabH} />
+        <ExpertView modules={expert} state={state} onChange={change} pxPerMm={pxPerMm} height={window.innerHeight - topPx - tabH} />
       ) : (
       <div style={{ width: fm.widthMm * pxPerMm }}>
         <ModulePanel
@@ -356,10 +387,92 @@ function PatchApp({ typeId }: { typeId: string }) {
   );
 }
 
+/** Typen van het project, met de ingebouwde waar die bestaan (nieuwer dan een opgeslagen kopie). */
+function withBuiltinTypes(project: ModularProject, base: ModularProject): ModularProject {
+  const builtin = new Map(base.moduleTypes.map((t) => [t.id, t]));
+  const own = project.moduleTypes.filter((t) => !builtin.has(t.id));
+  return { ...project, moduleTypes: [...base.moduleTypes, ...own] };
+}
+
+/** Menu's van de catalogus in de patchkeuze (zonder stresstests en diagnose). */
+const PICK_MENUS: [CatalogEntry['menu'], string][] = [['basisset', 'Basisset'], ['poly', 'Poly'], ['solo', 'Solo']];
+
+/** MMB Patch: kies een patch (catalogus of projectbestand); de plugin speelt hem. */
+function GenericPatchApp() {
+  const base = useMemo(() => seedInternals(emptyModularProject()), []);
+  const [cur, setCur] = useState<{ view: PatchViewData; name: string; n: number } | null>(null);
+  const [msg, setMsg] = useState<{ text: string; warn: boolean } | null>(null);
+  const [pick, setPick] = useState('');
+  const barPx = 34;
+
+  const show = (project: ModularProject, name: string) =>
+    setCur((c) => ({ view: buildView(project, activePatch(project)), name, n: (c?.n ?? 0) + 1 }));
+  // De patch van het project (de plugin bewaart hem): bij het openen van het venster.
+  useEffect(() => {
+    void patchGet().then((r) => {
+      if (r?.ui) {
+        try { show(withBuiltinTypes(JSON.parse(r.ui) as ModularProject, base), r.name); }
+        catch (e) { setMsg({ text: `patch onleesbaar: ${String(e)}`, warn: true }); }
+      } else if (r?.error) setMsg({ text: r.error, warn: true });
+    });
+  }, [base]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const load = async (project: ModularProject, name: string) => {
+    const patch = activePatch(project);
+    setMsg({ text: `${name} laden…`, warn: false });
+    try {
+      const cfg = patchPluginConfig(project, patch);
+      const slim = slimProject(project, patch);
+      const config = JSON.stringify({ json: cfg.json, slots: cfg.slots.slice(0, PATCH_SLOTS).map((x) => ({ label: x.label, targets: x.targets, spec: x.spec })) });
+      const r = await patchLoad(config, JSON.stringify(slim), name);
+      if (!r.ok) { setMsg({ text: `${name}: ${r.error}`, warn: true }); return; }
+      show(slim, name);
+      setMsg(cfg.slots.length > PATCH_SLOTS ? { text: `${cfg.slots.length - PATCH_SLOTS} knoppen zonder DAW-parameter (alleen Expert)`, warn: true } : null);
+    } catch (e) {
+      setMsg({ text: `${name}: ${e instanceof Error ? e.message : String(e)}`, warn: true });
+    }
+  };
+  useEffect(() => watchPatchFile((f) => {
+    try {
+      const p = JSON.parse(f.text) as ModularProject;
+      if (!Array.isArray(p.patches) || !p.patches.length) throw new Error('geen patch in dit bestand');
+      void load(withBuiltinTypes(p, base), f.name);
+    } catch (e) { setMsg({ text: `${f.name}: ${e instanceof Error ? e.message : String(e)}`, warn: true }); }
+  }), [base]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const btn = { font: 'inherit', color: '#fff', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' } as const;
+  return (
+    <div style={{ background: '#0b0d12', minHeight: '100vh' }}>
+      <div style={{ height: barPx, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', boxSizing: 'border-box',
+        color: '#e5e7eb', font: '500 13px/1.2 system-ui, sans-serif', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+        <select value={pick} style={{ font: 'inherit', maxWidth: 260 }} title="Een patch uit de catalogus van de editor"
+          onChange={(e) => {
+            const id = e.target.value;
+            setPick('');
+            const entry = PATCH_CATALOG.find((x) => x.id === id);
+            if (entry) void load(entry.build(seedInternals(emptyModularProject())), entry.label);
+          }}>
+          <option value="">Patch kiezen…</option>
+          {PICK_MENUS.map(([menu, title]) => (
+            <optgroup key={menu} label={title}>
+              {PATCH_CATALOG.filter((e) => e.menu === menu).map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        <button type="button" style={btn} onClick={choosePatchFile} title="Een project uit de editor (.json); de actieve patch klinkt">Bestand…</button>
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: msg?.warn ? '#fca5a5' : '#fff' }}>
+          {msg?.text ?? cur?.name ?? 'Nog geen patch: kies er een.'}
+        </span>
+      </div>
+      {cur && <PatchView key={cur.n} built={cur.view} slots topPx={barPx} />}
+    </div>
+  );
+}
+
 const typeId = new URLSearchParams(window.location.search).get('type') ?? 'tp_mmb_hall';
 document.title = inPlugin ? 'MMB' : `MMB ${typeId} (los, geen plugin)`;
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {typeId.startsWith('patch_') ? <PatchApp typeId={typeId} /> : <App typeId={typeId} />}
+    {typeId === 'patch_generic' ? <GenericPatchApp /> : typeId.startsWith('patch_') ? <PatchApp typeId={typeId} /> : <App typeId={typeId} />}
   </StrictMode>,
 );

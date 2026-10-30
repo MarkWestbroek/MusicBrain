@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("sc=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") || arg.startsWith("savestate=") || arg.startsWith("loadstate=") ||
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("sc=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") || arg.startsWith("savestate=") || arg.startsWith("loadstate=") || arg.startsWith("patchstate=") ||
             arg.startsWith("press=") || arg.startsWith("cc=") || arg.startsWith("at=") || arg.startsWith("seq=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
@@ -94,6 +94,13 @@ int main(int argc, char** argv) {
             for (auto* p : plugin->getParameters())
                 std::printf("  %s = %s\n", p->getName(64).toRawUTF8(), p->getCurrentValueAsText().toRawUTF8());
         };
+        // Met loadstate= de bediening op een bewaarde toestand (MMB Patch met een patch).
+        for (int b = 4; b < argc; ++b) {
+            const juce::String ls(argv[b]);
+            juce::MemoryBlock st;
+            if (ls.startsWith("loadstate=") && juce::File(ls.fromFirstOccurrenceOf("=", false, false)).loadFileAsData(st))
+                plugin->setStateInformation(st.getData(), static_cast<int>(st.getSize()));
+        }
         std::printf("parameters voor de bediening:\n"); printParams();
         std::unique_ptr<juce::AudioProcessorEditor> editor(plugin->createEditorIfNeeded());
         if (!editor) { std::fprintf(stderr, "plugin heeft geen bediening\n"); return 1; }
@@ -209,6 +216,37 @@ int main(int argc, char** argv) {
         if (auto* c = xb ? xb->getChildByName("IComponent") : nullptr) backInner.fromBase64Encoding(c->getAllSubText());
         std::printf("eigen bank %s (%zu bytes); toestand van de plugin terug: %zu bytes%s\n", f.getFileName().toRawUTF8(), bank.getSize(),
                     backInner.getSize(), backInner.getSize() > 4 && std::memcmp(backInner.getData(), "MMBP", 4) == 0 ? " (MMBP)" : "");
+    }
+    // patchstate=<bestand>: MMB Patch met een patch, zoals een project hem
+    // bewaart (GenericPatch.h). Het bestand komt van
+    // editor/scripts/patchConfigDump.ts: { config, ui, name }.
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("patchstate=")) continue;
+        const juce::var pv = juce::JSON::parse(juce::File(arg.fromFirstOccurrenceOf("=", false, false)));
+        if (!pv.isObject()) { std::fprintf(stderr, "patchstate: geen JSON\n"); return 1; }
+        juce::MemoryBlock host;
+        plugin->getStateInformation(host);
+        auto xml = juce::AudioProcessor::getXmlFromBinary(host.getData(), static_cast<int>(host.getSize()));
+        auto* comp = xml ? xml->getChildByName("IComponent") : nullptr;
+        juce::MemoryBlock inner;
+        if (!comp || !inner.fromBase64Encoding(comp->getAllSubText())) { std::fprintf(stderr, "patchstate: geen VST3-toestand\n"); return 1; }
+        auto own = juce::AudioProcessor::getXmlFromBinary(inner.getData(), static_cast<int>(inner.getSize()));
+        if (!own) { std::fprintf(stderr, "patchstate: toestand van de plugin onleesbaar\n"); return 1; }
+        own->setAttribute("patchConfig", pv["config"].toString());
+        own->setAttribute("patchUi", pv["ui"].toString());
+        own->setAttribute("patchName", pv["name"].toString());
+        own->setAttribute("patchDefaults", 1);   // slots op de stand van de patch, zoals bij kiezen in het venster
+        juce::MemoryBlock st;
+        juce::AudioProcessor::copyXmlToBinary(*own, st);
+        comp->deleteAllTextElements();
+        comp->addTextElement(st.toBase64Encoding());
+        juce::MemoryBlock wrapped;
+        juce::AudioProcessor::copyXmlToBinary(*xml, wrapped);
+        plugin->setStateInformation(wrapped.getData(), static_cast<int>(wrapped.getSize()));
+        std::printf("patch in de toestand: %s\n", pv["name"].toString().toRawUTF8());
+        for (auto* p : plugin->getParameters())
+            if (p->getParameterIndex() < 6) std::printf("  %s = %s\n", p->getName(64).toRawUTF8(), p->getCurrentValueAsText().toRawUTF8());
     }
     // loadstate=<bestand>: de toestand zoals een DAW hem bij het openen van
     // een project teruggeeft (eerder geschreven met savestate=).

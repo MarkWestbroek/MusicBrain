@@ -1,6 +1,7 @@
 # Build artefacts
 build/
 build-mac/
+build-mac-patch/
 out/
 dist/
 *.o

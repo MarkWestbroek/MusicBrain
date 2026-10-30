@@ -21,17 +21,15 @@ import { fileURLToPath } from 'node:url';
 
 import { PATCH_CATALOG } from '../src/modular-mb/patchCatalog';
 import { PATCH_PLUGINS, patchPluginTypeId, pluginPanelSize, pluginParams } from '../src/modular-mb/patchPlugins';
-import { polyControlTargets } from '../src/modular-mb/polyExpand';
+import { PATCH_SLOTS, patchPluginConfig } from '../src/modular-mb/patchPluginConfig';
 import { seedInternals } from '../src/modular-mb/seedModules';
-import { bypassRoute } from '../src/modular-mb/bypassRoute';
-import { buildConfigPayload } from '../src/modular-mb/teensyLink';
 import { emptyModularProject } from '../src/modular-mb/types';
 import { spec } from './pluginParams';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outDir = path.join(repo, 'tools', 'plugin', 'generated');
 const wasmPublic = path.join(repo, 'editor', 'public', 'wasm');
-const NATIVE = new Set(['tp_mmb_mixer8', 'tp_mmb_out']);   // PatchEngine.h doet die zelf
+const NATIVE = new Set(['tp_mmb_mixer', 'tp_mmb_mixer8', 'tp_mmb_mixer16', 'tp_mmb_out']);   // PatchEngine.h doet die zelf
 
 const cstr = (s: string) => '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 /** Modulenaam voor wasm2c: letters en cijfers (wasm2c verdubbelt een underscore). */
@@ -45,16 +43,9 @@ function main(): void {
     if (!entry) throw new Error(`geen seed "${p.label}" in patchCatalog.ts`);
     const project = entry.build(seedInternals(emptyModularProject()));
     const patch = project.patches.find((x) => x.id === project.activePatchId) ?? project.patches[project.patches.length - 1]!;
-    const payload = buildConfigPayload(project, { activeOnly: true });
-    const config = JSON.parse(payload.json) as { project: { modules: { id: string; typeId: string }[] }; bypass?: Record<string, unknown> };
-    const bypass: Record<string, unknown> = {};
-    for (const t of new Set(config.project.modules.map((m) => m.typeId))) {
-      const type = project.moduleTypes.find((x) => x.id === t);
-      const route = type && bypassRoute(type);
-      if (route) bypass[t] = 'own' in route ? { own: true } : route.pairs.map((x) => (x.fallback ? [x.out, x.in, x.fallback] : [x.out, x.in]));
-    }
-    config.bypass = bypass;
-    const json = JSON.stringify(config);
+    const cfg = patchPluginConfig(project, patch);   // dezelfde motor-JSON als MMB Patch maakt
+    const json = cfg.json;
+    const config = JSON.parse(json) as { project: { modules: { id: string; typeId: string }[] } };
 
     const types = [...new Set(config.project.modules.map((m) => m.typeId))].filter((t) => !NATIVE.has(t)).sort();
     const missing = types.filter((t) => !fs.existsSync(path.join(wasmPublic, `${t}.wasm`)));
@@ -75,7 +66,8 @@ function main(): void {
       if (!row) throw new Error(`${p.label}: ${it.controlId} kan geen parameter zijn`);
       // spec() begint met { "<control-id>", "<naam>", …: id en naam vervangen.
       rows.push(row.replace(/^\{ "(?:[^"\\]|\\.)*", "(?:[^"\\]|\\.)*"/, `{ ${cstr(it.id)}, ${cstr(it.label)}`));
-      const to = polyControlTargets(patch, project, it.moduleId).map((m) => `{ ${cstr(m)}, ${cstr(it.controlId)} }`);
+      const slot = cfg.slots.find((x) => x.id === it.id)!;
+      const to = slot.targets.map(([m, c2]) => `{ ${cstr(m)}, ${cstr(c2)} }`);
       targets.push(`        { ${to.join(', ')} },`);
     }
     // Het venster: het grootste front plus de tabbalk (MmbWebEditor rekent in mm).
@@ -127,6 +119,56 @@ function main(): void {
     console.log(`${p.label} → ${p.target}: ${config.project.modules.length} modules (${mods.length} soorten wasm), ${rows.length} parameters, JSON ${(json.length / 1024).toFixed(1)} KB`);
   }
   fs.writeFileSync(path.join(outDir, 'patches.cmake'), cmake.join('\n') + '\n');
+  writeGeneric();
+}
+
+/**
+ * MMB Patch: één plugin voor elke patch (plugin-patches.md §5, stap 4). Alle
+ * wasm-modules zitten erin; de patch kiest de bediening (plugin-ui) en komt
+ * als motor-JSON binnen (GenericPatch.h). Parameters: PATCH_SLOTS slots.
+ */
+function writeGeneric(): void {
+  const mods = fs.readdirSync(wasmPublic).filter((f) => f.endsWith('.wasm')).map((f) => f.replace(/\.wasm$/, ''))
+    .filter((t) => t.startsWith('tp_mmb_') && !NATIVE.has(t)).sort();
+  // Met voorvoegsel: een module "string" gaf string.h in de include-map, en die
+  // overschaduwde de systeemheader.
+  const gname = (t: string) => `m${w2cName(t)}`;
+  const names = new Set<string>();
+  for (const t of mods) {
+    if (names.has(gname(t))) throw new Error(`wasm2c-naam ${gname(t)} dubbel`);
+    names.add(gname(t));
+  }
+  const slotRows = Array.from({ length: PATCH_SLOTS }, (_, i) => {
+    const id = `s${String(i + 1).padStart(3, '0')}`;
+    return `    { ${cstr(id)}, ${cstr(`Knop ${i + 1}`)}, ParamKind::Float, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, "", "slot" },`;
+  });
+  fs.writeFileSync(path.join(outDir, 'patchgeneric_plugin.cpp'), [
+    '// Gegenereerd door editor/scripts/pluginPatches.ts (MMB Patch); niet met de hand wijzigen.',
+    '#include "GenericPatch.h"',
+    ...mods.map((t) => `#include "${gname(t)}_vt.h"`),
+    '',
+    'namespace mmb_plugin {',
+    'const W2cVtable* genericModule(const std::string& t) {',
+    ...mods.map((t) => `    if (t == ${cstr(t)}) return &kW2c_${gname(t)};`),
+    '    return nullptr;',
+    '}',
+    'inline constexpr ParamSpec kParams_generic[] = {',
+    ...slotRows,
+    '};',
+    // Venster: zoals het grootste front van Poly 8; de bediening past het aan per patch.
+    `inline constexpr ModuleSpec kModule_generic { "patch_generic", "Patch", 30, kParams_generic, ${PATCH_SLOTS}, nullptr, 0, 160.0f, 128.0f };`,
+    '}  // namespace mmb_plugin',
+    '',
+    'juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new mmb_plugin::GenericPatchProcessor(mmb_plugin::kModule_generic); }',
+    '',
+  ].join('\n'));
+  const w2c = mods.map((t) => `${gname(t)} ${cstr(path.join(wasmPublic, `${t}.wasm`).split(path.sep).join('/'))}`).join(' ');
+  fs.writeFileSync(path.join(outDir, 'patch_generic.cmake'), [
+    '# Gegenereerd door editor/scripts/pluginPatches.ts; niet met de hand wijzigen.',
+    `mmb_add_module(MmbPatch Ppch "MMB Patch" TRUE \${MMB_GENERATED_DIR}/patchgeneric_plugin.cpp CATEGORIES Instrument Synth NOLTO W2CMODS ${w2c})`,
+    '',
+  ].join('\n'));
+  console.log(`MMB Patch: ${mods.length} soorten wasm, ${PATCH_SLOTS} slots`);
 }
 
 main();

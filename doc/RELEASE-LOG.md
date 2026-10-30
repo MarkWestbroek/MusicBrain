@@ -101,6 +101,21 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-10-30 — MMB Patch: elke patch in één plugin
+<!-- EN: MMB Patch: one plugin that plays any patch from the catalogue or an editor project -->
+- Nieuwe AU/VST3 "MMB Patch": kies in het venster een patch uit de
+  catalogus (Basisset, Poly, Solo) of open een project uit de editor
+  (Bestand…). Geen build per patch meer (stap 4 van
+  [plugin-patches.md](plans/plugin-patches.md)).
+- 256 vaste DAW-parameters; elke slot krijgt naam en eenheid van de knop
+  van de geladen patch. De patch gaat mee in het project.
+- De patchmotor rekent nu ook de 4- en 16-kanaals mixer zelf.
+- Gemeten: CS-80 en Poly 8 via MMB Patch bit-gelijk aan de vaste plugins.
+  71 van de 125 catalogpatches klinken; modules op 32/48 kHz of met een
+  andere blokgrootte (Plaits, Rings, Peaks, Elements, Clouds, DX7, Warps)
+  en banken (Sampler, Mellotron, Zang) passen nog niet in de motor.
+- Details: [plugin.md](plans/plugin.md) ("MMB Patch").
+
 ### 2026-10-30 — Plugins: bank laden zonder te haperen, "laden…" en de bankkiezer
 <!-- EN: Plugins: banks load on a background thread, show "loading…", and the bank picker works in the plugin -->
 - SAMPLER en TAPESTRIP laden een bank op een eigen thread (`bankPool_` in

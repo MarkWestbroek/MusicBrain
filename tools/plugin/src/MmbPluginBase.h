@@ -130,6 +130,22 @@ public:
     /** Zet een `.mmbs` in de module (onder de callback-lock); false + @p error bij een fout. */
     virtual bool applyBank(const void* /*data*/, std::size_t /*size*/, juce::String& error) { error = "geen bank"; return false; }
 
+    // ── Slots (MMB Patch, GenericPatch.h): parameters met unit "slot" ─────
+    /** Naam van slot-parameter @p index in de DAW ("" = de vaste naam). */
+    virtual juce::String slotName(int /*index*/) const { return {}; }
+    /** Tekst bij waarde 0..1 van slot @p index ("" = het getal). */
+    virtual juce::String slotText(int /*index*/, float /*value*/) const { return {}; }
+    /** Ingetikte tekst → 0..1 voor slot @p index (< 0 = niet herkend). */
+    virtual float slotValueFromText(int /*index*/, const juce::String& /*text*/) const { return -1.0f; }
+    /** Eigen gegevens in de projecttoestand (naast de parameters), en terug. */
+    virtual void addToState(juce::ValueTree&) const {}
+    virtual void restoredState(const juce::ValueTree&) {}
+    /** Bediening van MMB Patch: de patch van nu, en een andere laden. */
+    virtual juce::var patchGet() const { return {}; }
+    virtual juce::var patchLoad(const juce::String& /*config*/, const juce::String& /*ui*/, const juce::String& /*name*/) { return {}; }
+    /** Alle parameters opnieuw doorgeven bij het volgende blok (na een nieuwe patch). */
+    void requestRepush() { repush_ = true; }
+
     // ── Bank: toestand voor het paneel ───────────────────────────────────
     struct BankInfo { juce::String name, error; bool own = false; int knob = -1; juce::String note; bool loading = false; };
     BankInfo bankInfo() const { const juce::ScopedLock sl(bankLock_); return bankInfo_; }
@@ -210,6 +226,7 @@ public:
     void getStateInformation(juce::MemoryBlock& dest) override {
         juce::MemoryBlock xmlBlock;
         auto tree = state_.copyState();
+        addToState(tree);
         {
             // Nummer en bestand van de knopbank, zodat het project deze bank terugvindt.
             const juce::ScopedLock sl(bankLock_);
@@ -238,6 +255,7 @@ public:
             bankName = in.readString();
             in.readIntoMemoryBlock(bank, static_cast<size_t>(in.readInt64()));
         } else restoreXml(data, size);
+        restoredState(state_.state);
         if (!hasBank()) return;
         // Het bewaarde bestand van de knopbank (leeg in oudere projecten).
         const juce::String file = state_.state.getProperty(kBankFile).toString();
@@ -293,10 +311,30 @@ private:
         return all;
     }
 
+    /** Slot van MMB Patch: naam en tekst komen van de patch die geladen is. */
+    class SlotParameter final : public juce::AudioParameterFloat {
+    public:
+        SlotParameter(const juce::ParameterID& pid, const juce::String& name, MmbProcessor* self, int index)
+            : AudioParameterFloat(pid, name, juce::NormalisableRange<float>(0.0f, 1.0f), 0.0f,
+                  juce::AudioParameterFloatAttributes()
+                      .withStringFromValueFunction([self, index](float v, int) { const auto t = self->slotText(index, v); return t.isNotEmpty() ? t : juce::String(v, 3); })
+                      .withValueFromStringFunction([self, index](const juce::String& t) { const float p = self->slotValueFromText(index, t); return p >= 0.0f ? p : t.getFloatValue(); })),
+              self_(self), index_(index) {}
+        juce::String getName(int max) const override {
+            const auto n = self_->slotName(index_);
+            return (n.isNotEmpty() ? n : AudioParameterFloat::getName(max)).substring(0, max);
+        }
+    private:
+        MmbProcessor* self_;
+        int index_;
+    };
+
     static juce::AudioProcessorValueTreeState::ParameterLayout layout(const std::vector<ParamSpec>& params, MmbProcessor* self) {
         juce::AudioProcessorValueTreeState::ParameterLayout l;
+        int slot = 0;
         for (const ParamSpec& p : params) {
             const juce::ParameterID pid { p.id, 1 };
+            if (std::strcmp(p.unit, "slot") == 0) { l.add(std::make_unique<SlotParameter>(pid, p.name, self, slot++)); continue; }
             switch (p.kind) {
                 case ParamKind::Float: {
                     juce::NormalisableRange<float> range(p.min, p.max, p.interval);
@@ -327,6 +365,7 @@ private:
     // Alleen doorgeven wat veranderd is: een kern rekent bij setControl vaak
     // tabellen opnieuw uit.
     void pushParameters() {
+        if (repush_.exchange(false)) for (auto& a : applied_) a = std::nanf("");
         for (std::size_t i = 0; i < params_.size(); ++i) {
             const float v = raw_[i]->load();
             if (v == applied_[i]) continue;
@@ -486,6 +525,7 @@ protected:
 private:
     juce::ThreadPool bankPool_ { 1 };    // laadt banken buiten de message-thread
     std::atomic<int> bankKnob_ { -1 };   // gevraagd door de audiothread
+    std::atomic<bool> repush_ { false };  // requestRepush()
 };
 
 // ── De bediening: het editorpaneel in een webview ────────────────────────
@@ -562,6 +602,25 @@ public:
             })
             .withNativeFunction("mmbBankList", [this](const juce::Array<juce::var>&, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
                 complete(mmb_.bankList());
+            })
+            // MMB Patch: de patch van nu, een andere laden, of een projectbestand kiezen.
+            .withNativeFunction("mmbPatchGet", [this](const juce::Array<juce::var>&, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                complete(mmb_.patchGet());
+            })
+            .withNativeFunction("mmbPatchLoad", [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                complete(args.size() >= 3 ? mmb_.patchLoad(args[0].toString(), args[1].toString(), args[2].toString()) : juce::var());
+            })
+            .withNativeFunction("mmbPatchChoose", [this](const juce::Array<juce::var>&, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                chooser_ = std::make_unique<juce::FileChooser>("Patch of project kiezen", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory), "*.json");
+                chooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles, [this](const juce::FileChooser& fc) {
+                    const juce::File f = fc.getResult();
+                    if (!f.existsAsFile() || !browser_) return;
+                    auto* o = new juce::DynamicObject();
+                    o->setProperty("name", f.getFileNameWithoutExtension());
+                    o->setProperty("text", f.loadFileAsString());
+                    browser_->emitEventIfBrowserIsVisible("mmbPatchFile", juce::var(o));
+                });
+                complete({});
             })
             .withNativeFunction("mmbBankClear", [this](const juce::Array<juce::var>&, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
                 mmb_.clearOwnBank();

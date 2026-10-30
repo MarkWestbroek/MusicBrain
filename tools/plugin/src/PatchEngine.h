@@ -2,7 +2,7 @@
 // Een hele patch in de plugin (doc/plans/plugin-patches.md §4–5): de JSON die
 // de Teensy krijgt (buildConfigPayload in teensyLink.ts: poly-groepen
 // uitgevouwen, alle knoppen erbij), met elke module als wasm2c-instantie
-// (W2cRuntime.h) en MIXER8/OUT native zoals de firmware ze doet.
+// (W2cRuntime.h) en de mixers (4/8/16) en OUT native zoals de firmware ze doet.
 //
 // Timing zoals de Teensy (firmware main.cpp, CvGraph.cpp):
 //  - Audio rekent op 44,1 kHz in blokken van 32. CV tikt op 1 kHz met een
@@ -66,7 +66,10 @@ public:
                 const std::string id = m["id"].toString().toStdString(), type = m["typeId"].toString().toStdString();
                 auto node = std::make_unique<Node>();
                 node->id = id; node->type = type;
-                if (type == "tp_mmb_mixer8") node->kind = Node::Mixer8;
+                // De mixers rekent de motor zelf (Mixer8Module.h en broers: vol/pan per kanaal).
+                if (type == "tp_mmb_mixer8") { node->kind = Node::Mixer; node->channels = 8; }
+                else if (type == "tp_mmb_mixer") { node->kind = Node::Mixer; node->channels = 4; }
+                else if (type == "tp_mmb_mixer16") { node->kind = Node::Mixer; node->channels = 16; }
                 else if (type == "tp_mmb_out") node->kind = Node::Out;
                 else {
                     const W2cVtable* vt = factory(type);
@@ -176,14 +179,15 @@ public:
 
 private:
     struct Node {
-        enum Kind { Cv, Audio, Mixer8, Out } kind = Audio;
+        enum Kind { Cv, Audio, Mixer, Out } kind = Audio;
         std::string id, type;
         std::unique_ptr<W2cHost> host;
         int block = kBlock;
-        // Native MIXER8/OUT.
-        float vol[8] = { 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f }, pan[8] = {};
+        // Native MIXER (4/8/16 kanalen) en OUT.
+        int channels = 0;
+        float vol[16] = { 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f }, pan[16] = {};
         float level = 1.0f;
-        float in[8][kBlock] = {};
+        float in[16][kBlock] = {};
         float out[2][kBlock] = {};
         // Bypass: eigen knop, of droge paren (uitgang, ingang); byp loopt naar bypTarget.
         bool ownBypass = false;
@@ -207,24 +211,32 @@ private:
         }
         if (n.host) { const int c = n.host->controlIndex(control.c_str()); if (c >= 0) n.host->setControl(c, v); return; }
         if (n.kind == Node::Out && control == "level") { n.level = v; return; }
-        if (n.kind == Node::Mixer8 && control.size() == 4) {
-            const int i = control[3] - '1';
-            if (i < 0 || i > 7) return;
+        if (n.kind == Node::Mixer && control.size() >= 4) {
+            const int i = channelIndex(control, 3, n.channels);
+            if (i < 0) return;
             if (control.compare(0, 3, "vol") == 0) n.vol[i] = v;
             else if (control.compare(0, 3, "pan") == 0) n.pan[i] = v;
         }
     }
 
-    // Poorten van native modules: MIXER8 in1..in8 → out_l/out_r, OUT l/r.
+    /** "vol12" vanaf @p at → 11; −1 als het geen kanaal 1..@p channels is. */
+    static int channelIndex(const std::string& s, std::size_t at, int channels) {
+        if (s.size() <= at || s.size() > at + 2) return -1;
+        int v = 0;
+        for (std::size_t k = at; k < s.size(); ++k) { if (s[k] < '0' || s[k] > '9') return -1; v = v * 10 + (s[k] - '0'); }
+        return v >= 1 && v <= channels ? v - 1 : -1;
+    }
+
+    // Poorten van native modules: MIXER in1..inN → out_l/out_r, OUT l/r.
     static int inIndex(Node& n, const std::string& p) {
         if (n.host) return n.host->inputIndex(p);
-        if (n.kind == Node::Mixer8 && p.size() == 3 && p.compare(0, 2, "in") == 0 && p[2] >= '1' && p[2] <= '8') return p[2] - '1';
+        if (n.kind == Node::Mixer && p.compare(0, 2, "in") == 0) return channelIndex(p, 2, n.channels);
         if (n.kind == Node::Out) return p == "l" ? 0 : p == "r" ? 1 : -1;
         return -1;
     }
     static int outIndex(Node& n, const std::string& p) {
         if (n.host) return n.host->outputIndex(p);
-        if (n.kind == Node::Mixer8) return p == "out_l" ? 0 : p == "out_r" ? 1 : -1;
+        if (n.kind == Node::Mixer) return p == "out_l" ? 0 : p == "out_r" ? 1 : -1;
         return -1;
     }
     static int inKind(Node& n, int i) { return n.host ? n.host->inputKind(i) : kPortAudio_; }
@@ -331,11 +343,11 @@ private:
             const float* s = c.src->host ? c.src->host->outBuf(c.out) : c.src->out[c.out];
             for (int k = 0; k < kBlock; ++k) n.in[c.in][k] += c.gain * s[k];
         }
-        if (n.kind == Node::Mixer8) {
+        if (n.kind == Node::Mixer) {
             // Equal-power pan zoals Mixer8Module.h: θ = (pan + 1)·π/4.
             std::fill(n.out[0], n.out[0] + kBlock, 0.0f);
             std::fill(n.out[1], n.out[1] + kBlock, 0.0f);
-            for (int i = 0; i < 8; ++i) {
+            for (int i = 0; i < n.channels; ++i) {
                 const float th = (n.pan[i] + 1.0f) * 0.25f * 3.14159265f;
                 const float gl = n.vol[i] * std::cos(th), gr = n.vol[i] * std::sin(th);
                 for (int k = 0; k < kBlock; ++k) { n.out[0][k] += gl * n.in[i][k]; n.out[1][k] += gr * n.in[i][k]; }

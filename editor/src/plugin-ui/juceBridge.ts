@@ -39,6 +39,29 @@ export async function bankList(): Promise<{ n: number; name: string }[]> {
   const r = await (getNativeFunction('mmbBankList')() as Promise<unknown>);
   return Array.isArray(r) ? r.map((x) => ({ n: Number((x as { n: unknown }).n), name: String((x as { name: unknown }).name) })) : [];
 }
+// ── MMB Patch (GenericPatch.h) ─────────────────────────────────────────
+/** De patch die de plugin speelt: naam, de bediening-JSON (slimProject) en een fout. */
+export interface PatchState { name: string; ui: string; error: string }
+export async function patchGet(): Promise<PatchState | null> {
+  if (!inPlugin) return null;
+  const r = await (getNativeFunction('mmbPatchGet')() as Promise<PatchState | undefined>);
+  return r ?? null;
+}
+/** Een andere patch laden: configuratie (patchPluginConfig), bediening-JSON en naam. */
+export async function patchLoad(config: string, ui: string, name: string): Promise<{ ok: boolean; error: string }> {
+  if (!inPlugin) return { ok: false, error: 'geen plugin' };
+  const r = await (getNativeFunction('mmbPatchLoad')(config, ui, name) as Promise<{ ok: boolean; error: string } | undefined>);
+  return r ?? { ok: false, error: 'geen antwoord van de plugin' };
+}
+/** Bestandskiezer van de plugin; het bestand komt binnen via watchPatchFile. */
+export const choosePatchFile = (): void => { if (inPlugin) void getNativeFunction('mmbPatchChoose')(); };
+export function watchPatchFile(onFile: (f: { name: string; text: string }) => void): () => void {
+  if (!inPlugin) return () => {};
+  const backend = (window as unknown as { __JUCE__: { backend: JuceBackend & { removeEventListener(t: unknown): void } } }).__JUCE__.backend;
+  const token = backend.addEventListener('mmbPatchFile', (p) => onFile(p as { name: string; text: string }));
+  return () => backend.removeEventListener(token);
+}
+
 export const chooseBank = (): void => { if (inPlugin) void getNativeFunction('mmbBankChoose')(); };
 export const clearBank = (): void => { if (inPlugin) void getNativeFunction('mmbBankClear')(); };
 

@@ -532,6 +532,45 @@ Brass" (51 modules, de acht knoppen van het front als parameters).
   exemplaar de gedeelde gastheer. Zonder tweede exemplaar is RINGS
   bit-gelijk.
 
+### MMB Patch: elke patch in één plugin (2026-10-30)
+
+Stap 4 van [plugin-patches.md](plugin-patches.md). Eén AU/VST3, "MMB Patch"
+(code `Ppch`), met alle 114 wasm-modules erin; welke patch klinkt, kies je
+in het venster.
+
+- **Kiezen:** de balk bovenaan heeft de catalogus van de editor (Basisset,
+  Poly, Solo) en "Bestand…" voor een project uit de editor (de actieve
+  patch). Daaronder de fronts en Expert, zoals bij Poly 8 en CS-80.
+- **Hoe:** de bediening rekent de motor-JSON en de parameters uit
+  (`patchPluginConfig.ts`, dezelfde functie als de generator voor de vaste
+  patch-plugins) en geeft ze aan de plugin (`GenericPatch.h`, native
+  `mmbPatchLoad`). De motor wordt op de message-thread gebouwd en onder de
+  callback-lock verwisseld. Configuratie en patch gaan mee in de
+  projecttoestand: een project speelt zonder venster weer dezelfde patch.
+- **Parameters:** 256 vaste slots (de DAW kan het aantal niet wisselen).
+  Slot i is de i-de knop van de patch, fronts eerst; naam ("Helderheid")
+  en tekst ("1500 Hz") komen van die knop, en intikken werkt. Na een andere
+  patch vraagt de plugin de DAW de namen opnieuw te lezen.
+- **De mixers** (4, 8 en 16 kanalen) rekent de motor nu zelf; eerst kon
+  alleen MIXER-8.
+- **Gemeten** (`MmbPluginCheck ... patchstate=<bestand>`, het bestand van
+  `scripts/patchConfigDump.ts`):
+  - CS-80 en Poly 8 via MMB Patch zijn bit-gelijk aan de vaste plugins.
+  - Een slot bedienen (Helderheid 2000 Hz na 1 s) verandert de klank pas
+    vanaf dat moment; bewaren en opnieuw openen geeft exact dezelfde klank.
+  - Van de 125 catalogpatches klinken er 71. Niet: modules op een andere
+    rate of blokgrootte (Plaits/Rings/Peaks 48 kHz, Elements/Clouds 32 kHz,
+    DX7 blok 64, Warps blok 60; 46 patches), banken (Sampler, Mellotron,
+    Zang: 8, stil), en een patch met een audio-ingang (1).
+  - auval geslaagd.
+- **Bouwen:** `npx tsx scripts/pluginPatches.ts` schrijft ook
+  `patchgeneric_plugin.cpp` en `patch_generic.cmake`. MMB Patch linkt
+  zonder LTO (`NOLTO`). Een eigen bouwmap met alleen MMB Patch configureert
+  in een halve minuut: `-DMMB_ONLY_PATCH=ON` (README).
+- **Nog niet:** de modules op andere rates in de motor (resampler per
+  module), banken in een patch, een patch uit de editor rechtstreeks naar
+  de plugin sturen, fabriekspresets in het presetmenu van de DAW.
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde

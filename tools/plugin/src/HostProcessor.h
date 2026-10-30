@@ -97,7 +97,7 @@ struct AbiPorts {
 };
 
 template <class Host>
-class HostProcessor final : public MmbProcessor {
+class HostProcessor : public MmbProcessor {
 public:
     HostProcessor(const ModuleSpec& spec, bool synth)
         : MmbProcessor(spec, synth, probe().extraParamsFor(synth), !synth && !probe().portsFor(synth).sideIn.empty()),
@@ -270,6 +270,9 @@ public:
             fifo.erase(fifo.begin(), fifo.begin() + used);
         }
     }
+
+protected:
+    Host& host() { return host_; }
 
 private:
     /** Eén gastheer om de poorten te lezen vóór er een exemplaar is (de

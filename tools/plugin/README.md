@@ -130,6 +130,20 @@ Een hele patch als één plugin (`PatchEngine.h`, `PatchPlugin.h`): in
 `MmbPluginCheck "<plugin>.vst3" uit.wav 4 notes=48,55,60,64 press=127`
 (aftertouch) of `cc=1:127` (modwheel).
 
+**MMB Patch** (`GenericPatch.h`): één plugin voor elke patch, met alle
+wasm-modules. `pluginPatches.ts` schrijft ook `patchgeneric_plugin.cpp` en
+`patch_generic.cmake`. Alleen MMB Patch bouwen, in een eigen map (snel
+configureren):
+
+    cmake -S tools/plugin -B build-mac-patch -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DMMB_JUCE_DIR=$HOME/src/JUCE -DMMB_WABT_DIR=$HOME/src/wabt -DMMB_ONLY_PATCH=ON
+    cmake --build build-mac-patch --target MmbPatch_All MmbPluginCheck
+
+Testen zonder venster: `npx tsx scripts/patchConfigDump.ts "<label>" p.json`
+in `editor/`, dan `MmbPluginCheck "MMB Patch.vst3" uit.wav 3 notes=48,60,64
+patchstate=p.json`. Verder: `savestate=`/`loadstate=` (een project bewaren
+en openen), en `editor=8 loadstate=...` opent het venster met die patch.
+
 ## Testen
 
 `tools/plugin/test/`:
