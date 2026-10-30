@@ -112,6 +112,15 @@
 - De Bank-knop loopt tot 63 (fw 0.5.119); 16–30 zijn nu ook te kiezen,
   bijvoorbeeld 21 "Orchestral Harp". Kopieer `editor/public/banks/index.json`
   naar de bankmap (gedaan op deze Mac).
+- Nette namen: vier banken hadden als naam een afgekapte bestandsnaam
+  ("small bells trimmed normalis"). index.json kreeg een veld `title` voor
+  de weergave (`bank-index.mjs`, TITLES): Small Bells, Small Bells (lus),
+  Hand Drum (2 lagen), Elements (test). `name` blijft de kop van het
+  bestand, want daarop koppelt de simulator aan de SD-kaart. De Teensy toont
+  nog de kop.
+- **Op Windows**: `tools/plugin/generated` staat niet in git. Draai na het
+  ophalen eerst `npm run build:plugin-ui` (met MMB_JUCE_DIR), anders blijft
+  de knop op 15 staan (MODULES).
 - `MmbPluginCheck` kreeg `savestate=` en `loadstate=`. auval SAMPLER en
   TAPESTRIP geslaagd.
 

@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import type { ModularProject, Patch } from '../types';
 import { useTeensyLink } from '../teensyLink';
-import { ensureSamplerBank, loadBankIndex, resolveBank, setUserPick, currentBank, type BankIndex, type LoadedBank } from './bankAutoLoad';
+import { bankLabel, ensureSamplerBank, loadBankIndex, resolveBank, setUserPick, currentBank, type BankIndex, type LoadedBank } from './bankAutoLoad';
 
 export function SamplerBankBar(props: { project: ModularProject; patch: Patch }): JSX.Element | null {
   const { project, patch } = props;
@@ -42,7 +42,7 @@ export function SamplerBankBar(props: { project: ModularProject; patch: Patch })
               onChange={(e) => { setUserPick(nn, e.target.value || null); setTick((t) => t + 1); }}>
         {!resolved && <option value="">—</option>}
         {index?.files.map((f) => (
-          <option key={f.file} value={f.file}>{f.name} ({(f.size / 1e6).toFixed(1)} MB)</option>
+          <option key={f.file} value={f.file}>{bankLabel(f)} ({(f.size / 1e6).toFixed(1)} MB)</option>
         ))}
       </select>
       <span style={{ color: state.err ? '#b91c1c' : '#475569' }}>

@@ -26,6 +26,16 @@ async function headerName(file) {
   return raw.subarray(0, end < 0 ? 28 : end).toString("utf8");
 }
 
+// Nette titels voor de weergave (Bank-knop, display, plugin), waar de naam
+// in de kop een afgekapte bestandsnaam is. `name` blijft de kop: daarop
+// koppelt de simulator aan de banken op de SD-kaart (sim/bankAutoLoad.ts).
+const TITLES = {
+  'elements.mmbs': 'Elements (test)',
+  'handdrum 2 velocities normalised v2.mmbs': 'Hand Drum (2 lagen)',
+  'small bells trimmed normalised v3 looped.mmbs': 'Small Bells (lus)',
+  'small bells trimmed normalised v3.mmbs': 'Small Bells',
+};
+
 const old = existsSync(out) ? JSON.parse(await readFile(out, "utf8")) : { defaults: {} };
 // Grote banken uit de GitHub-release staan niet altijd lokaal; houd die uit
 // de oude index vast, zodat een index-run op een machine zonder ze ze niet wist.
@@ -33,9 +43,9 @@ const files = new Map((old.files ?? []).map((f) => [f.file, f]));
 for (const f of (await readdir(dir)).filter((x) => x.endsWith(".mmbs")).sort()) {
   const name = await headerName(join(dir, f));
   if (name === null) continue;
-  files.set(f, { file: f, name, size: (await stat(join(dir, f))).size });
+  files.set(f, { file: f, name, ...(TITLES[f] ? { title: TITLES[f] } : {}), size: (await stat(join(dir, f))).size });
 }
-const list = [...files.values()].sort((a, b) => a.file.localeCompare(b.file));
+const list = [...files.values()].map((f) => (TITLES[f.file] ? { ...f, title: TITLES[f.file] } : f)).sort((a, b) => a.file.localeCompare(b.file));
 // Vaste nummering = die op de SD-kaart van de Teensy (/mmb/banks/NN.mmbs),
 // uitgelezen 25-09-2026 met tools/teensy-live/bank_put.py --list. Zo tonen sim
 // en Teensy bij hetzelfde nummer dezelfde bank. Andere bestanden blijven in

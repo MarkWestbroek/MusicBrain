@@ -59,7 +59,16 @@ inline juce::String mmbsName(const void* data, std::size_t size) {
     return juce::String::fromUTF8(b + 16, static_cast<int>(strnlen(b + 16, 28)));
 }
 
-/** Naam van de bank op Bank-knop @p n ("" = geen): index.json `files[].name`,
+/** Weergavenaam van bankbestand @p file volgens index.json: `title`, anders
+ *  `name` ("" = staat er niet in). */
+inline juce::String bankIndexLabel(const juce::var& index, const juce::String& file) {
+    if (const auto* files = index["files"].getArray())
+        for (const auto& f : *files)
+            if (f["file"].toString() == file) return f["title"].toString().isNotEmpty() ? f["title"].toString() : f["name"].toString();
+    return {};
+}
+
+/** Naam van de bank op Bank-knop @p n ("" = geen): index.json `files[].title`/`name`,
  *  anders de kop van het bestand. Onthouden tot index.json verandert. */
 inline juce::String bankKnobName(int n) {
     static juce::CriticalSection lock;
@@ -74,8 +83,7 @@ inline juce::String bankKnobName(int n) {
     const juce::String file = index["defaults"][juce::Identifier(juce::String(n))].toString();
     juce::String name;
     if (file.isNotEmpty()) {
-        if (const auto* files = index["files"].getArray())
-            for (const auto& f : *files) if (f["file"].toString() == file) name = f["name"].toString();
+        name = bankIndexLabel(index, file);
         if (name.isEmpty()) {
             juce::MemoryBlock head;
             if (auto in = dir.getChildFile(file).createInputStream()) in->readIntoMemoryBlock(head, 44);
@@ -366,8 +374,10 @@ private:
             name = file.getFileNameWithoutExtension();
             loadedFile = file.getFileName();
         }
+        // Naam: de titel of naam uit index.json (knopbank), anders de kop.
+        const juce::String label = own ? juce::String() : bankIndexLabel(juce::JSON::parse(bankDir().getChildFile("index.json")), loadedFile);
         const juce::String header = mmbsName(data, size);
-        if (header.isNotEmpty()) name = header;
+        if (label.isNotEmpty()) name = label; else if (header.isNotEmpty()) name = header;
         juce::String error;
         bool ok;
         { const juce::ScopedLock cl(getCallbackLock()); ok = applyBank(data, size, error); }

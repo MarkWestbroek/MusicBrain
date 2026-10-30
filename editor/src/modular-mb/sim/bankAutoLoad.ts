@@ -18,7 +18,10 @@ import { parseBank } from '../sampleBank';
 const TYPE_ID = 'tp_mmb_sampler';
 const PICK_KEY = 'mmb.sim.bankPick.v1';
 
-export interface BankIndexEntry { file: string; name: string; size: number }
+/** name = de naam in de kop (daarop koppelen aan de SD-kaart); title = nette weergavenaam als die afwijkt. */
+export interface BankIndexEntry { file: string; name: string; title?: string; size: number }
+/** Naam om te tonen: de titel uit index.json, anders de kop. */
+export const bankLabel = (f: BankIndexEntry): string => f.title ?? f.name;
 export interface BankIndex { files: BankIndexEntry[]; defaults: Record<string, string> }
 
 const base = (): string => ((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/').replace(/\/?$/, '/');
@@ -57,7 +60,8 @@ export function simBankName(nn: number): string | null {
   if (loaded && loaded.nn === nn) return loaded.name;
   if (!indexCache) { void loadBankIndex(); return null; }
   const r = resolveBank(indexCache, nn);
-  return r ? indexCache.files.find((f) => f.file === r.file)?.name ?? r.file : null;
+  const f = r ? indexCache.files.find((x) => x.file === r.file) : undefined;
+  return r ? (f ? bankLabel(f) : r.file) : null;
 }
 
 export function userPicks(): Record<string, string> {
@@ -111,7 +115,8 @@ export async function ensureSamplerBank(nn: number, sdNames?: (string | undefine
     const { name, slots, zones } = parseBank(await res.arrayBuffer());
     slots.forEach((s, i) => WasmModule.setBlob(TYPE_ID, i, s.data, s.rate, s.name ?? '', s.channels));
     WasmModule.setZones(TYPE_ID, zones);
-    loaded = { nn, file: r.file, name: name || r.file, source: r.source, summary: `${slots.length} samples, ${zones.length} zones` };
+    const entry = indexCache?.files.find((x) => x.file === r.file);
+    loaded = { nn, file: r.file, name: entry?.title ?? (name || r.file), source: r.source, summary: `${slots.length} samples, ${zones.length} zones` };
     emit();
     return loaded;
   })().finally(() => { inflight = null; });

@@ -9,6 +9,7 @@
     {
       "file": "elements.mmbs",
       "name": "elements-test",
+      "title": "Elements (test)",
       "size": 1842724
     },
     {
@@ -134,16 +135,19 @@
     {
       "file": "handdrum 2 velocities normalised v2.mmbs",
       "name": "handdrum 2 velocities normal",
+      "title": "Hand Drum (2 lagen)",
       "size": 10296876
     },
     {
       "file": "small bells trimmed normalised v3 looped.mmbs",
       "name": "small bells trimmed normalis",
+      "title": "Small Bells (lus)",
       "size": 7033956
     },
     {
       "file": "small bells trimmed normalised v3.mmbs",
       "name": "small bells trimmed normalis",
+      "title": "Small Bells",
       "size": 7033956
     },
     {
