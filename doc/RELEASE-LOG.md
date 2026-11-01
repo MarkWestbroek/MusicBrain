@@ -118,6 +118,15 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB Patch: de catalogus in het presetmenu van de DAW
+<!-- EN: MMB Patch: the patch catalogue as DAW programs (preset menu), playable without opening the window -->
+- De 113 patches uit Basisset, Poly en Solo staan als programma's in het
+  presetmenu van Logic (en elke DAW). Een keuze laadt meteen, ook zonder
+  venster; het venster volgt. Een project bewaart de keuze (getest:
+  opnieuw openen klinkt identiek).
+- De generator bakt per patch alleen de motorconfiguratie in (1,5 MB); de
+  bediening bouwt de weergave zelf uit de catalogus (`catalogId`).
+
 ### 2026-11-01 — MMB Patch: samplebanken in een patch
 <!-- EN: MMB Patch: sample banks load inside a patch (sampler, Mellotron, Percuter) -->
 - Sampler, TAPE STRIP (Mellotron) en PERCUTER klinken nu ook in een patch:

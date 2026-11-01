@@ -32,6 +32,8 @@ namespace mmb_plugin {
 
 /** Uit de gegenereerde patchgeneric_plugin.cpp: elke wasm-module. */
 const W2cVtable* genericModule(const std::string& typeId);
+/** Uit de gegenereerde patchgeneric_plugin.cpp: de catalogus als JSON [{ id, label, menu, config }]. */
+const char* genericPresetsJson();
 
 /** Eén slot: welke knoppen hij zet en hoe 0..1 een knopwaarde wordt. */
 struct PatchSlot {
@@ -159,9 +161,26 @@ public:
         return i >= 0 && i < static_cast<int>(slots_.size()) ? slots_[static_cast<std::size_t>(i)].fromText(t) : -1.0f;
     }
 
+    // ── Programma's: de catalogus (presetmenu van de DAW) ─────────────────
+    // Programma 0 is "eigen" (wat de bediening of een project laadde).
+    int getNumPrograms() override { return 1 + static_cast<int>(presets().size()); }
+    int getCurrentProgram() override { return program_; }
+    const juce::String getProgramName(int i) override {
+        if (i == 0) return "Eigen patch";
+        return i <= static_cast<int>(presets().size()) ? presets()[static_cast<std::size_t>(i - 1)].label : juce::String();
+    }
+    void changeProgramName(int, const juce::String&) override {}
+    void setCurrentProgram(int i) override {
+        if (i <= 0 || i > static_cast<int>(presets().size()) || i == program_) return;
+        const Preset& p = presets()[static_cast<std::size_t>(i - 1)];
+        juce::String error;
+        if (load(p.config, {}, p.label, true, error, p.id)) program_ = i;
+    }
+
     juce::var patchGet() const override {
         const juce::ScopedLock sl(lock_);
         auto* o = new juce::DynamicObject();
+        o->setProperty("catalogId", catalogId_);
         o->setProperty("name", name_);
         o->setProperty("ui", ui_);
         o->setProperty("error", error_);
@@ -170,7 +189,8 @@ public:
     }
     juce::var patchLoad(const juce::String& config, const juce::String& ui, const juce::String& name) override {
         juce::String error;
-        const bool ok = load(config, ui, name, true, error);
+        const bool ok = load(config, ui, name, true, error, {});
+        if (ok) program_ = 0;
         auto* o = new juce::DynamicObject();
         o->setProperty("ok", ok);
         o->setProperty("error", error);
@@ -184,6 +204,8 @@ public:
         t.setProperty("patchConfig", config_, nullptr);
         t.setProperty("patchUi", ui_, nullptr);
         t.setProperty("patchName", name_, nullptr);
+        t.setProperty("patchCatalog", catalogId_, nullptr);
+        t.setProperty("patchProgram", program_, nullptr);
     }
     void restoredState(const juce::ValueTree& t) override {
         const juce::String config = t.getProperty("patchConfig").toString();
@@ -191,12 +213,29 @@ public:
         juce::String error;
         // De parameters staan al goed (uit de toestand): niet op de beginstand
         // zetten, behalve als de toestand daarom vraagt (MmbPluginCheck patchstate=).
-        load(config, t.getProperty("patchUi").toString(), t.getProperty("patchName").toString(), static_cast<bool>(t.getProperty("patchDefaults", false)), error);
+        load(config, t.getProperty("patchUi").toString(), t.getProperty("patchName").toString(), static_cast<bool>(t.getProperty("patchDefaults", false)), error,
+             t.getProperty("patchCatalog").toString());
+        program_ = static_cast<int>(t.getProperty("patchProgram", 0));
     }
 
 private:
-    /** Configuratie → motor en slots; @p defaults: de slots op de stand van de patch zetten. */
-    bool load(const juce::String& config, const juce::String& ui, const juce::String& name, bool defaults, juce::String& error) {
+    struct Preset { juce::String id, label, config; };
+    /** De catalogus, één keer gelezen. */
+    static const std::vector<Preset>& presets() {
+        static const std::vector<Preset> list = [] {
+            std::vector<Preset> out;
+            const juce::var all = juce::JSON::parse(juce::String::fromUTF8(genericPresetsJson()));
+            if (auto* arr = all.getArray())
+                for (const auto& p : *arr) out.push_back({ p["id"].toString(), p["label"].toString(), p["config"].toString() });
+            return out;
+        }();
+        return list;
+    }
+
+    /** Configuratie → motor en slots; @p defaults: de slots op de stand van de patch zetten.
+     *  @p catalogId: uit de catalogus (de bediening maakt de weergave dan zelf). */
+    bool load(const juce::String& config, const juce::String& ui, const juce::String& name, bool defaults, juce::String& error,
+              const juce::String& catalogId) {
         const juce::var root = juce::JSON::parse(config);
         if (!root.isObject()) { error = "geen geldige patchconfiguratie"; return fail(error); }
         std::vector<PatchSlot> slots;
@@ -238,7 +277,7 @@ private:
         {
             const juce::ScopedLock sl(lock_);
             slots_ = std::move(slots);
-            config_ = config; ui_ = ui; name_ = name; error_.clear(); warning_ = warning;
+            config_ = config; ui_ = ui; name_ = name; error_.clear(); warning_ = warning; catalogId_ = catalogId;
         }
         // engine en forHost houden nu de oude motor; die gaat hier weg, buiten de lock.
         if (defaults) {
@@ -250,6 +289,7 @@ private:
         }
         requestRepush();
         updateHostDisplay(ChangeDetails().withParameterInfoChanged(true));
+        sendChangeMessage();   // het venster volgt (mmbPatch)
         std::printf("[mmb] patch %s: %d knoppen\n", name.toRawUTF8(), static_cast<int>(slots_.size()));
         std::fflush(stdout);
         return true;
@@ -281,7 +321,8 @@ private:
 
     juce::CriticalSection lock_;
     std::vector<PatchSlot> slots_;   // voor namen en tekst in de DAW (de gastheer heeft een eigen kopie)
-    juce::String config_, ui_, name_, error_, warning_;
+    juce::String config_, ui_, name_, error_, warning_, catalogId_;
+    int program_ = 0;
 };
 
 }  // namespace mmb_plugin

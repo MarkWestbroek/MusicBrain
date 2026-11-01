@@ -41,7 +41,7 @@ export async function bankList(): Promise<{ n: number; name: string }[]> {
 }
 // ── MMB Patch (GenericPatch.h) ─────────────────────────────────────────
 /** De patch die de plugin speelt: naam, de bediening-JSON (slimProject) en een fout. */
-export interface PatchState { name: string; ui: string; error: string; warning?: string }
+export interface PatchState { name: string; ui: string; error: string; warning?: string; catalogId?: string }
 export async function patchGet(): Promise<PatchState | null> {
   if (!inPlugin) return null;
   const r = await (getNativeFunction('mmbPatchGet')() as Promise<PatchState | undefined>);
@@ -52,6 +52,13 @@ export async function patchLoad(config: string, ui: string, name: string): Promi
   if (!inPlugin) return { ok: false, error: 'geen plugin' };
   const r = await (getNativeFunction('mmbPatchLoad')(config, ui, name) as Promise<{ ok: boolean; error: string; warning?: string } | undefined>);
   return r ?? { ok: false, error: 'geen antwoord van de plugin' };
+}
+/** Een andere patch in de plugin (presetmenu van de DAW, of een project dat opent). */
+export function watchPatch(onPatch: (p: PatchState) => void): () => void {
+  if (!inPlugin) return () => {};
+  const backend = (window as unknown as { __JUCE__: { backend: JuceBackend & { removeEventListener(t: unknown): void } } }).__JUCE__.backend;
+  const token = backend.addEventListener('mmbPatch', (p) => onPatch(p as PatchState));
+  return () => backend.removeEventListener(token);
 }
 /** Bestandskiezer van de plugin; het bestand komt binnen via watchPatchFile. */
 export const choosePatchFile = (): void => { if (inPlugin) void getNativeFunction('mmbPatchChoose')(); };

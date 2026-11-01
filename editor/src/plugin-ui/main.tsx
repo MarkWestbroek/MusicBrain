@@ -26,8 +26,8 @@ import { seedInternals } from '../modular-mb/seedModules';
 import { setHostBank, setHostBankList } from '../modular-mb/sim/bankAutoLoad';
 import { emptyModularProject, type Control, type ControlValue, type ModularProject, type Patch } from '../modular-mb/types';
 import {
-  attach, bankList, chooseBank, choosePatchFile, clearBank, inPlugin, log, patchGet, patchLoad, resizeTo, watchBank, watchPatchFile,
-  type BankInfo, type Handle, type Kind,
+  attach, bankList, chooseBank, choosePatchFile, clearBank, inPlugin, log, patchGet, patchLoad, resizeTo, watchBank, watchPatch, watchPatchFile,
+  type BankInfo, type Handle, type Kind, type PatchState,
 } from './juceBridge';
 
 // Het venster is vergrootbaar met vaste verhouding (MmbPluginBase.h); de
@@ -447,15 +447,26 @@ function GenericPatchApp() {
 
   const show = (project: ModularProject, name: string) =>
     setCur((c) => ({ view: buildView(project, activePatch(project)), name, n: (c?.n ?? 0) + 1 }));
-  // De patch van het project (de plugin bewaart hem): bij het openen van het venster.
-  useEffect(() => {
-    void patchGet().then((r) => {
-      if (r?.ui) {
-        try { show(withBuiltinTypes(JSON.parse(r.ui) as ModularProject, base), r.name); if (r.warning) setMsg({ text: `${r.name}: ${r.warning}`, warn: true }); }
-        catch (e) { setMsg({ text: `patch onleesbaar: ${String(e)}`, warn: true }); }
-      } else if (r?.error) setMsg({ text: r.error, warn: true });
-    });
-  }, [base]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // Wat de plugin speelt: zijn bewaarde patch (ui), of een uit de catalogus
+  // (catalogId: presetmenu van de DAW), die de bediening zelf opbouwt.
+  const shown = useRef('');
+  const adopt = (r: PatchState | null) => {
+    if (!r) return;
+    const key = `${r.catalogId ?? ''}|${r.name}|${r.ui.length}`;
+    if (key === shown.current) return;
+    try {
+      if (r.ui) show(withBuiltinTypes(JSON.parse(r.ui) as ModularProject, base), r.name);
+      else if (r.catalogId) {
+        const entry = PATCH_CATALOG.find((x) => x.id === r.catalogId);
+        if (!entry) { setMsg({ text: `${r.name}: niet in de catalogus van deze versie`, warn: true }); return; }
+        const project = entry.build(seedInternals(emptyModularProject()));
+        show(slimProject(project, activePatch(project)), r.name);
+      } else { if (r.error) setMsg({ text: r.error, warn: true }); return; }
+      shown.current = key;
+      setMsg(r.warning ? { text: `${r.name}: ${r.warning}`, warn: true } : null);
+    } catch (e) { setMsg({ text: `patch onleesbaar: ${String(e)}`, warn: true }); }
+  };
+  useEffect(() => { void patchGet().then(adopt); return watchPatch(adopt); }, [base]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = async (project: ModularProject, name: string) => {
     const patch = activePatch(project);
@@ -466,6 +477,7 @@ function GenericPatchApp() {
       const config = JSON.stringify({ json: cfg.json, slots: cfg.slots.slice(0, PATCH_SLOTS).map((x) => ({ label: x.label, targets: x.targets, spec: x.spec })) });
       const r = await patchLoad(config, JSON.stringify(slim), name);
       if (!r.ok) { setMsg({ text: `${name}: ${r.error}`, warn: true }); return; }
+      shown.current = `|${name}|${JSON.stringify(slim).length}`;
       show(slim, name);
       const notes = [r.warning, cfg.slots.length > PATCH_SLOTS ? `${cfg.slots.length - PATCH_SLOTS} knoppen zonder DAW-parameter (alleen Expert)` : ''].filter(Boolean);
       setMsg(notes.length ? { text: `${name}: ${notes.join('; ')}`, warn: true } : null);

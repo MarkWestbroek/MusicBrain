@@ -167,6 +167,22 @@ function writeGeneric(): void {
     const id = `s${String(i + 1).padStart(3, '0')}`;
     return `    { ${cstr(id)}, ${cstr(`Knop ${i + 1}`)}, ParamKind::Float, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, "", "slot" },`;
   });
+  // De catalogus als programma's (presetmenu van de DAW): per patch de configuratie;
+  // de bediening maakt de weergave zelf uit de catalogus (catalogId).
+  const presets: { id: string; label: string; menu: string; config: string }[] = [];
+  for (const e of PATCH_CATALOG) {
+    if (!['basisset', 'poly', 'solo'].includes(e.menu)) continue;
+    try {
+      const project = e.build(seedInternals(emptyModularProject()));
+      const patch = project.patches.find((x) => x.id === project.activePatchId) ?? project.patches[project.patches.length - 1]!;
+      const cfg = patchPluginConfig(project, patch);
+      presets.push({ id: e.id, label: e.label, menu: e.menu,
+        config: JSON.stringify({ json: cfg.json, slots: cfg.slots.slice(0, PATCH_SLOTS).map((x) => ({ label: x.label, targets: x.targets, spec: x.spec })) }) });
+    } catch (err) { console.warn(`MMB Patch: ${e.label} overgeslagen (${String(err)})`); }
+  }
+  const presetBytes = [...Buffer.from(JSON.stringify(presets), 'utf8')];
+  const presetLines: string[] = [];
+  for (let i = 0; i < presetBytes.length; i += 48) presetLines.push('    ' + presetBytes.slice(i, i + 48).join(',') + ',');
   fs.writeFileSync(path.join(outDir, 'patchgeneric_plugin.cpp'), [
     '// Gegenereerd door editor/scripts/pluginPatches.ts (MMB Patch); niet met de hand wijzigen.',
     '#include "GenericPatch.h"',
@@ -177,6 +193,11 @@ function writeGeneric(): void {
     ...mods.map((t) => `    if (t == ${cstr(t)}) return &kW2c_${gname(t)};`),
     '    return nullptr;',
     '}',
+    `static const unsigned char kPresets[] = {`,
+    ...presetLines,
+    '    0 };',
+    '/** De catalogus: [{ id, label, menu, config }] (programma\'s van de DAW). */',
+    'const char* genericPresetsJson() { return reinterpret_cast<const char*>(kPresets); }',
     'inline constexpr ParamSpec kParams_generic[] = {',
     ...slotRows,
     '};',
@@ -193,7 +214,7 @@ function writeGeneric(): void {
     `mmb_add_module(MmbPatch Ppch "MMB Patch" TRUE \${MMB_GENERATED_DIR}/patchgeneric_plugin.cpp CATEGORIES Instrument Synth NOLTO W2CMODS ${w2c})`,
     '',
   ].join('\n'));
-  console.log(`MMB Patch: ${mods.length} soorten wasm, ${PATCH_SLOTS} slots`);
+  console.log(`MMB Patch: ${mods.length} soorten wasm, ${PATCH_SLOTS} slots, ${presets.length} programma's (${(presetBytes.length / 1e6).toFixed(1)} MB)`);
 }
 
 main();

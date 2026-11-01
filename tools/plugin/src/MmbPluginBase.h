@@ -684,6 +684,7 @@ private:
     }
     void changeListenerCallback(juce::ChangeBroadcaster*) override {
         if (browser_) browser_->emitEventIfBrowserIsVisible("mmbBank", bankVar());
+        if (browser_) { const juce::var p = mmb_.patchGet(); if (!p.isVoid()) browser_->emitEventIfBrowserIsVisible("mmbPatch", p); }
     }
 
     void setScale(double s) {

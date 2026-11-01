@@ -590,8 +590,13 @@ in het venster.
   op de message-thread (timer). 122 van de 125 catalogpatches klinken.
 - **Lyricbanken:** ZANG leest `lyrics/NN.mmbl` naast de bankmap, als één
   blob op slot = banknummer (`zang_wasm.cc`).
+- **Presetmenu (2026-11-01):** de catalogus (Basisset, Poly, Solo; 113
+  patches) is de lijst programma's van de DAW. De generator bakt per patch
+  de configuratie in (`genericPresetsJson`); een keuze laadt zonder venster,
+  het venster bouwt de weergave uit de catalogus (`catalogId`, event
+  `mmbPatch`).
 - **Nog niet:** een patch uit de editor rechtstreeks
-  naar de plugin sturen, fabriekspresets in het presetmenu van de DAW. De
+  naar de plugin sturen. De
   vaste patch-plugins (Poly 8, CS-80) krijgen de nieuwe motor bij hun
   volgende build.
 
