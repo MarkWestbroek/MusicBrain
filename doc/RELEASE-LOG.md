@@ -130,6 +130,18 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB DX7 en MMB CMI: venster opgeknapt, CMI weer zichtbaar
+<!-- EN: MMB DX7 editor laid out properly in the plugin window; MMB CMI window no longer blank -->
+- MMB CMI toonde in Logic een leeg venster: de knop Page 4 zocht een patch
+  die een losse module niet heeft, en die fout liet de hele pagina vallen.
+  Page 4 krijgt nu een eigen patch.
+- De DX7-editor in MMB DX7 en in MMB Patch (tab DX7) liep door elkaar: de
+  plugin-pagina zet de regelhoogte op 0 en de editor erfde die. Hij zet nu
+  zijn eigen regelhoogte; tabelcellen blijven op één regel.
+- In MMB DX7 vult de editor het venster en schaalt mee, zonder ✕, *edit uit*
+  en de Roto-sectie via MIDI (de Roto loopt daar via Logic). Het klavier
+  speelt in beide plugins (de editor zei eerst "geen DX7 in de patch").
+
 ### 2026-11-01 — MMB DX7: elke stemparameter een DAW-parameter
 <!-- EN: MMB DX7: a DX7 instrument plugin with all 145 voice parameters as DAW parameters and 256 factory programs -->
 - Nieuwe AU/VST3 **MMB DX7**: achtstemmig, met alle 145 parameters van een

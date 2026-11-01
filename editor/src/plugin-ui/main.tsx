@@ -187,10 +187,11 @@ function CmiPageButton({ project, moduleId, state, pxPerMm, onControl }: {
   }, []);
   const latest = useRef({ state, onControl });
   latest.current = { state, onControl };
-  const patchId = activePatch(project).id;
+  // Een losse module heeft geen patch; CmiPage4 werkt op één (alleen deze module).
+  const patchId = 'cmi_plugin';
   useEffect(() => {
     if (!open) return;
-    const patch = activePatch(project);
+    const patch: Patch = { id: patchId, name: 'MMB CMI', voiceCount: 1, rackIds: [], connections: [], envelopes: [], lfos: [], controlState: {} };
     setProject({ ...project, patches: [{ ...patch, controlState: { [moduleId]: latest.current.state },
       moduleData: saved.current ? { [moduleId]: { cmi: saved.current } } : {} }], activePatchId: patch.id });
     let prev = getProject().patches[0]!;
@@ -476,7 +477,7 @@ function PatchView({ built, slots, topPx }: { built: PatchViewData; slots: boole
       </div>
       )}
       <Readout readout={readout} pxPerMm={pxPerMm} bottom={pxPerMm * 6} />
-      {sub === 'DX7' && <Dx7EditorModal open onClose={() => setTab(lastTab.current)} />}
+      {sub === 'DX7' && <Dx7EditorModal open plugin="patch" onClose={() => setTab(lastTab.current)} />}
       {sub === 'CMI' && cmi.length > 0 && (
         <CmiPage4 patchId={built.patch.id} owner={cmi[0]!.owner} voices={cmi.map((v) => v.id)} onClose={() => setTab(lastTab.current)} />
       )}
@@ -548,7 +549,7 @@ function Dx7App() {
   }, []);
   return (
     <div style={{ background: '#0b0d12', minHeight: '100vh' }}>
-      {ready ? <Dx7EditorModal open onClose={() => {}} /> : <p style={{ color: '#e5e7eb', padding: 16, font: '14px system-ui' }}>DX7 laden…</p>}
+      {ready ? <Dx7EditorModal open plugin="dx7" onClose={() => {}} /> : <p style={{ color: '#e5e7eb', padding: 16, font: '14px system-ui' }}>DX7 laden…</p>}
       {inPlugin && <ResizeGrip size={16} />}
     </div>
   );

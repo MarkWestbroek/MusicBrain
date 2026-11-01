@@ -35,15 +35,29 @@ function levelDb(level: number): string {
   const scaled = level >= 20 ? 28 + level : LEVEL_LUT[level]!;
   return `${((scaled - 127) * 0.75).toFixed(0)} dB`;
 }
+/** Breedte van de editor in MMB DX7 vóór het schalen. */
+const FULL_W = 1060;
 const noteName = (m: number): string => `${NOTE_NAMES[m % 12]}${Math.floor(m / 12) - 1}`;
 
-export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element | null {
+/** `plugin`: in een AU/VST3 (plugin-ui). Dan speelt het klavier op de plugin en
+ *  vervalt de Roto-sectie (geen Web MIDI; de Roto loopt via de DAW). Bij 'dx7'
+ *  (de plugin MMB DX7) vult de editor het venster, zonder ✕ en zonder edit uit:
+ *  de parameters zíjn daar de stem. */
+export function Dx7EditorModal({ open, onClose, plugin }: { open: boolean; onClose: () => void; plugin?: 'patch' | 'dx7' }): JSX.Element | null {
   const [patch, setPatch] = useState<Uint8Array | null>(null);
   const [bank, setBank] = useState(0);
   const [program, setProgram] = useState(0);
   const [busy, setBusy] = useState('');
   const [rotoOp, setRotoOp] = useState(1);
   const [, bump] = useState(0);
+  // MMB DX7: de editor schaalt mee met het venster (zoals een paneel), in plaats van te scrollen.
+  const [winW, setWinW] = useState(() => window.innerWidth);
+  useEffect(() => {
+    if (plugin !== 'dx7') return;
+    const onResize = (): void => setWinW(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [plugin]);
   const held = useRef<number | null>(null);
   const surface = useSurfaceBridge();
   // De CC-tap leeft langer dan één render; via een ref ziet hij altijd de
@@ -52,7 +66,7 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
   live.current = { patch, op: rotoOp };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || plugin === 'dx7') return;
     const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -62,7 +76,7 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
   // De tap ziet de CC vóór de project-bindings, zodat het Surface-paneel op
   // kanaal 1 gewoon kan blijven draaien.
   useEffect(() => {
-    if (!open) return;
+    if (!open || plugin) return;
     return addCcTap((ch, cc, val) => {
       if (ch !== DX7_ROTO_CHANNEL) return false;
       const cur = live.current;
@@ -83,14 +97,14 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
       }
       return cc >= 20 && cc <= 61;              // ons CC-blok, verder niets mee
     });
-  }, [open, bank, program]);
+  }, [open, bank, program, plugin]);
 
   // Knoppenstand terug naar het apparaat na een voicewissel of een andere
   // operator — anders staan de ringen op de vorige patch.
   useEffect(() => {
-    if (!open || !patch) return;
+    if (!open || !patch || plugin) return;
     for (const { cc, val } of rotoFeedback(patch, rotoOp)) sendCc(DX7_ROTO_CHANNEL, cc, val);
-  }, [open, patch, rotoOp]);
+  }, [open, patch, rotoOp, plugin]);
 
   // MMB DX7: de plugin (automation, een programma, een control surface) zet de stem.
   useEffect(() => {
@@ -167,7 +181,7 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
   }
 
   function play(midi: number, on: boolean): void {
-    if (dx7Host.instanceCount() === 0) { setBusy('geen DX7 in de patch — Poly ▾ → DX7 poly ×8, dan ▶ Start in Simulatie'); return; }
+    if (!plugin && dx7Host.instanceCount() === 0) { setBusy('geen DX7 in de patch — Poly ▾ → DX7 poly ×8, dan ▶ Start in Simulatie'); return; }
     // Construct A: de noot gaat de gewone weg — MIDI-in-dispatcher en
     // stemtoewijzer van de engine — net als een toets op het klavier.
     if (on) getEngine().noteOn(midi, 0.85); else getEngine().noteOff(midi);
@@ -177,25 +191,27 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
   const targets = patch ? modulationTargets(patch[DX7.algorithm] ?? 0) : new Map<number, number[]>();
   const modBy   = patch ? modulatorsOf(patch[DX7.algorithm] ?? 0) : new Map<number, number[]>();
 
-  const overlay: React.CSSProperties = {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  };
-  const panel: React.CSSProperties = {
-    background: '#fff', borderRadius: 8, padding: 18, width: 1000, maxWidth: '96vw',
-    maxHeight: '92vh', overflow: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,0.3)', fontSize: 13,
-  };
+  const full = plugin === 'dx7';
+  const overlay: React.CSSProperties = full
+    ? { position: 'fixed', inset: 0, background: '#fff', lineHeight: 1.35 }
+    : { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60, lineHeight: 1.35,
+        display: 'flex', alignItems: 'center', justifyContent: 'center' };
+  const panel: React.CSSProperties = full
+    ? { padding: '12px 16px', height: '100%', boxSizing: 'border-box', overflowY: 'auto', overflowX: 'hidden', fontSize: 13 }
+    : { background: '#fff', borderRadius: 8, padding: 18, width: 1000, maxWidth: '96vw',
+        maxHeight: '92vh', overflow: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,0.3)', fontSize: 13 };
   const th: React.CSSProperties = { textAlign: 'left', color: '#64748b', fontWeight: 500, padding: '2px 5px' };
-  const td: React.CSSProperties = { padding: '2px 5px', borderTop: '1px solid #e2e8f0' };
+  const td: React.CSSProperties = { padding: '2px 4px', borderTop: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
   const num = (w = 46): React.CSSProperties => ({ width: w });
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay} onClick={full ? undefined : onClose}>
       <div style={panel} onClick={(e) => e.stopPropagation()}>
+        <div style={full ? { width: FULL_W, zoom: winW / (FULL_W + 32) } : undefined}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h3 style={{ margin: 0 }}>🎛 DX7-patch</h3>
           <span style={{ color: '#64748b' }}>bewerken en direct horen</span>
-          <button onClick={onClose} style={{ marginLeft: 'auto' }}>✕</button>
+          {!full && <button onClick={onClose} style={{ marginLeft: 'auto' }}>✕</button>}
         </div>
 
         {/* ── startpunt + naam ── */}
@@ -215,9 +231,11 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
           <label>Naam <input value={patch ? patchName(patch).trimEnd() : ''} maxLength={10} style={{ width: 96 }}
             onChange={(e) => { if (!patch) return; setPatchName(patch, e.target.value); dx7Host.setEditPatch(patch); bump((n) => n + 1); }} /></label>
           <button onClick={exportSyx} disabled={!patch}>⤓ .syx</button>
-          <button onClick={() => { dx7Host.setEditPatch(null); setBusy('terug naar de bank-voice (Bank/Program van de module)'); }}>
-            edit uit
-          </button>
+          {!full && (
+            <button onClick={() => { dx7Host.setEditPatch(null); setBusy('terug naar de bank-voice (Bank/Program van de module)'); }}>
+              edit uit
+            </button>
+          )}
         </div>
 
         {patch && (
@@ -301,14 +319,14 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
                       <td style={{ ...td, color: '#475569' }}>{opRatio(patch, uiOp)}</td>
                       <td style={td}>
                         {[0, 1, 2, 3].map((i) => (
-                          <input key={i} type="number" min={0} max={99} style={{ width: 38 }}
+                          <input key={i} type="number" min={0} max={99} style={{ width: 36 }}
                             value={patch[o + DX7.op.rate + i] ?? 0}
                             onChange={(e) => set(o + DX7.op.rate + i, Number(e.target.value))} />
                         ))}
                       </td>
                       <td style={td}>
                         {[0, 1, 2, 3].map((i) => (
-                          <input key={i} type="number" min={0} max={99} style={{ width: 38 }}
+                          <input key={i} type="number" min={0} max={99} style={{ width: 36 }}
                             value={patch[o + DX7.op.level + i] ?? 0}
                             onChange={(e) => set(o + DX7.op.level + i, Number(e.target.value))} />
                         ))}
@@ -340,7 +358,7 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
             </div>
 
             {/* ── Roto-Control ── */}
-            <div style={{ marginTop: 12, padding: 10, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+            {!plugin && <div style={{ marginTop: 12, padding: 10, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 <strong style={{ color: '#475569' }}>🎛 Roto-Control</strong>
                 <span style={{ color: '#64748b', fontSize: 12 }}>kanaal {DX7_ROTO_CHANNEL}</span>
@@ -387,7 +405,7 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
                 Elke knop stuurt zijn eigen bereik (0–99 voor een level, 0–31 voor het
                 algoritme), dus het Roto-display toont hetzelfde getal als de tabel hierboven.
               </div>
-            </div>
+            </div>}
 
             {/* ── klavier ── */}
             <div style={{ display: 'flex', gap: 3, marginTop: 12, userSelect: 'none' }}>
@@ -409,11 +427,14 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
             </div>
             <div style={{ minHeight: 18, marginTop: 8, color: busy.startsWith('mislukt') ? '#b91c1c' : '#334155' }}>{busy}</div>
             <p style={{ color: '#94a3b8', fontSize: 12, marginBottom: 0 }}>
-              Wat je hier hoort is dezelfde msfa-kern als op de Teensy. De bewerking geldt voor
-              álle DX7-modules in de patch, tot je op <em>edit uit</em> drukt.
+              {full
+                ? <>Dezelfde msfa-kern als op de Teensy. Elke waarde is ook een parameter van de plugin: automation, het presetmenu en een control surface (Roto-Control in Logic) werken erop.</>
+                : <>Wat je hier hoort is dezelfde msfa-kern als op de Teensy. De bewerking geldt voor
+                  álle DX7-modules in de patch, tot je op <em>edit uit</em> drukt.</>}
             </p>
           </>
         )}
+        </div>
       </div>
     </div>
   );
