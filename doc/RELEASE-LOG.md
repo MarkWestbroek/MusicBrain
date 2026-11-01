@@ -17,6 +17,18 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-11-01 — fw 0.5.121: ritmebox met externe klok mist geen stap meer op de eerste tel
+<!-- EN: fw 0.5.121: rhythm box on external clock no longer rushes the first beat's steps -->
+- Met een externe klok (Ext Clock, een puls per tel) speelde de ritmebox
+  bij de eerste tel na een start stap 2–4 meteen achter de één: hij had nog
+  geen tel gemeten en rekende met 1 sample. Bij Rock 1 viel zo de hihat op
+  1-en weg. Mark hoorde het in een bounce van MMB Patch in Logic; op de
+  Teensy met Clock Beat gebeurde hetzelfde.
+- Nu neemt de box voor die eerste tel de lengte uit Tempo (in MMB Patch is
+  dat het tempo van de DAW, dus exact); vanaf de tweede tel meet hij weer.
+- `mmb_dsp/rhythm_box.h`, `tp_mmb_rhythm.wasm` en MMB Patch herbouwd.
+  Gemeten op 80 bpm: de hat op 1-en klinkt (0,32, als de andere hats).
+
 ### 2026-11-01 — fw 0.5.120: Rings krijgt een Mix-uitgang
 <!-- EN: fw 0.5.120: Rings gets a Mix output -->
 - Bij Poly 2 of 4 valt elke noot op óf ODD (`out_l`) óf EVEN (`out_r`), om

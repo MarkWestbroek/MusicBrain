@@ -128,7 +128,7 @@ public:
             case Variation: variation_ = static_cast<int>(finiteClamp(value, 0, 2, 2) + 0.5f); break;
             case Tempo: bpm_ = finiteClamp(value, 30, 300, 120); break;
             case Run: running_ = value >= 0.5f; restart(); break;
-            case ExtClock: extClock_ = value >= 0.5f; break;
+            case ExtClock: { const bool on = value >= 0.5f; if (on != extClock_) haveBeat_ = false; extClock_ = on; break; }
             case Accent: accent_ = finiteClamp(value, 0, 1, 0.6f); break;
             case Bass: group_[0] = finiteClamp(value, 0, 1, 0.8f); break;
             case Snare: group_[1] = finiteClamp(value, 0, 1, 0.8f); break;
@@ -176,7 +176,11 @@ public:
                     ++sinceBeat_;
                     if (clockEdge_ && frame == 0) {
                         clockEdge_ = false;
-                        if (sinceBeat_ < static_cast<double>(sampleRate_) * 4) beatSamples_ = sinceBeat_;
+                        // Eerste tel na een start: nog geen afstand gemeten, neem Tempo
+                        // (anders klonken stap 2..4 van die tel meteen achter de één).
+                        if (haveBeat_ && sinceBeat_ < static_cast<double>(sampleRate_) * 4) beatSamples_ = sinceBeat_;
+                        else if (!haveBeat_) beatSamples_ = 60.0 * sampleRate_ / bpm_;
+                        haveBeat_ = true;
                         sinceBeat_ = 0;
                         // Op de tel: de volgende stap is het begin van een tel.
                         if (step_ >= 0) step_ = ((step_ / perBeat) + 1) * perBeat - 1;
@@ -229,7 +233,7 @@ private:
     }
 
     /** Volgende stap is de eerste van maat A (of B bij variatie B). */
-    void restart() { step_ = -1; barB_ = variation_ == 1; sinceStep_ = 1e9; stepInBeat_ = 0; }
+    void restart() { step_ = -1; barB_ = variation_ == 1; sinceStep_ = 1e9; stepInBeat_ = 0; haveBeat_ = false; }
 
     void advance(int pulse) {
         const Pattern& p = pattern_;
@@ -262,7 +266,7 @@ private:
     double sinceStep_ = 1e9, sinceBeat_ = 0, beatSamples_ = 0;
     int rhythm_ = 0, variation_ = 2, step_ = -1, stepInBeat_ = 0;
     int stepGate_ = 0, barGate_ = 0, accentGate_ = 0;
-    bool barB_ = false, extClock_ = false, running_ = true;
+    bool barB_ = false, extClock_ = false, running_ = true, haveBeat_ = false;
     bool startHigh_ = false, clockHigh_ = false, clockEdge_ = false, resetHigh_ = false, resetEdge_ = false;
 };
 
