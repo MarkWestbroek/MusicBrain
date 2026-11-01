@@ -151,7 +151,30 @@ toestand (MMB CMI: `kernelTable`, de golftabel als base64).
 
 ## Testen
 
-`tools/plugin/test/`:
+**Regressietest van alle geïnstalleerde plugins** (Mac):
+
+```bash
+python3 tools/plugin/test/regress.py             # alle MMB-plugins, ±6 min
+python3 tools/plugin/test/regress.py --patches   # plus elke patch van MMB Patch, ±15 min
+python3 tools/plugin/test/regress.py --only DX7  # één of een paar
+python3 tools/plugin/test/regress.py --accept    # deze metingen worden het ijkpunt
+```
+
+Per plugin: een akkoord plus een testsignaal op de ingang (zo klinken
+instrument en effect allebei), met een DAW-transport op 120 bpm. Gemeten:
+stilte, NaN, een piek boven +12 dBFS, het niveau na bewaren en terugladen
+van de toestand, en het verschil met het ijkpunt
+(`test/regress-baseline.json`, meer dan 3 dB of 30 % helderheid is een
+melding). Het venster komt erbij als schermafdruk: de bediening headless in
+Chromium (de playwright-cache) met een nagebootste JUCE-brug. Dat laat zien
+of de pagina opbouwt, niet hoe WebKit in Logic hem tekent. Het rapport,
+`build-mac/regress/<datum>/report.html`, zet per plugin de uitslag, de wav
+en het venster onder elkaar.
+
+Draai hem na het herbouwen van plugins; gaat een module bewust anders
+klinken, bewaar dan het nieuwe ijkpunt met `--accept` (en commit de json).
+
+Verder in `tools/plugin/test/`:
 - `render_all.sh <bouwmap> <uitmap>` rendert elke gastheer-plugin met twee
   exemplaren;
 - `compare_wav.py a.wav b.wav` geeft het verschil en de SNR;

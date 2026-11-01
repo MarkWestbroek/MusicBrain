@@ -651,6 +651,24 @@ public:
                 });
                 complete({});
             })
+            // Een bestand bewaren (de webview kan niet downloaden): naam en
+            // inhoud in base64; antwoord true als het geschreven is.
+            .withNativeFunction("mmbSaveFile", [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                if (args.size() < 2) { complete(false); return; }
+                auto data = std::make_shared<juce::MemoryBlock>();
+                {   // standaard-base64 (MemoryBlock::fromBase64Encoding is een eigen JUCE-vorm)
+                    juce::MemoryOutputStream out(*data, false);
+                    if (!juce::Base64::convertFromBase64(out, args[1].toString())) { complete(false); return; }
+                }
+                const juce::String name = juce::File::createLegalFileName(args[0].toString());
+                chooser_ = std::make_unique<juce::FileChooser>("Bewaren", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(name),
+                                                               "*" + juce::File(name).getFileExtension());
+                chooser_->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::warnAboutOverwriting,
+                    [data, complete](const juce::FileChooser& fc) {
+                        const juce::File f = fc.getResult();
+                        complete(f != juce::File() && f.replaceWithData(data->getData(), data->getSize()));
+                    });
+            })
             .withNativeFunction("mmbBankClear", [this](const juce::Array<juce::var>&, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
                 mmb_.clearOwnBank();
                 complete({});

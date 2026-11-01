@@ -130,6 +130,19 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — Regressietest voor alle plugins; .syx bewaren in MMB DX7
+<!-- EN: Regression test across all installed plugins; .syx export works inside MMB DX7 -->
+- `tools/plugin/test/regress.py` loopt alle geïnstalleerde MMB-plugins langs
+  (en met `--patches` elke patch van MMB Patch): klinkt hij, geen NaN, geen
+  extreme piek, gelijk niveau na bewaren en terugladen, en binnen 3 dB van
+  het ijkpunt (`regress-baseline.json`). Het rapport zet per plugin de wav en
+  een schermafdruk van het venster onder elkaar. Eerste ronde: 194 stuks,
+  3 stil: twee ZANG-patches zonder lyricbank op deze Mac, en de vocoder met
+  microfoon (AUDIO IN zit nog niet in de patchmotor; plugin-patches.md §8).
+- De knop ".syx" in de DX7-editor deed in de plugin niets (de webview kan
+  niet downloaden); hij opent nu een bewaarvenster van de plugin
+  (`mmbSaveFile`, via `saveFile.ts`, ook bruikbaar voor latere subeditors).
+
 ### 2026-11-01 — MMB DX7 en MMB CMI: venster opgeknapt, CMI weer zichtbaar
 <!-- EN: MMB DX7 editor laid out properly in the plugin window; MMB CMI window no longer blank -->
 - MMB CMI toonde in Logic een leeg venster: de knop Page 4 zocht een patch

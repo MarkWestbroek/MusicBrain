@@ -284,6 +284,13 @@ dan staan achter Expert de tabs **DX7** en **CMI**: dezelfde
 - Waar wasm2c op Windows vandaan komt (wabt bouwen of een release), en of
   de gegenereerde C met clang-cl in de CMake-build past.
 - Licenties per module vóór verkoop (zie plugin.md).
+- AUDIO IN (`tp_mmb_audioin`) bestaat niet in de patchmotor: MMB Patch slaat
+  hem over, dus "Koor zingt jouw stem (vocoder + mic)" blijft stil. Daarvoor
+  moet MMB Patch een (sidechain-)ingang krijgen die de module voedt.
+  Gevonden met de regressietest (1-11).
+- ZANG-patches ("Zingende stem ×8", "Koor zingt jouw woorden") hebben een
+  lyricbank nodig in `~/Library/Application Support/MusicBrain/lyrics/NN.mmbl`;
+  zonder die map zijn ze stil (de plugin meldt dat).
 
 ## 9. Samplerate (48 en 96 kHz in Logic)
 

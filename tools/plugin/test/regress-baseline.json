@@ -1,0 +1,972 @@
+{
+ "MMB ACID": {
+  "rms_db": -12.74,
+  "peak": 0.6778,
+  "zcr": 883.7
+ },
+ "MMB BBD CHORUS": {
+  "rms_db": -22.14,
+  "peak": 0.5863,
+  "zcr": 11594.7
+ },
+ "MMB BEADS": {
+  "rms_db": -26.43,
+  "peak": 0.3714,
+  "zcr": 490.0
+ },
+ "MMB BUS COMP": {
+  "rms_db": -22.74,
+  "peak": 0.7369,
+  "zcr": 564.0
+ },
+ "MMB CLOUDS": {
+  "rms_db": -32.83,
+  "peak": 0.1815,
+  "zcr": 1896.7
+ },
+ "MMB CMI": {
+  "rms_db": -10.57,
+  "peak": 0.6024,
+  "zcr": 784.0
+ },
+ "MMB COMB": {
+  "rms_db": -22.12,
+  "peak": 0.5284,
+  "zcr": 5370.3
+ },
+ "MMB COMP": {
+  "rms_db": -15.47,
+  "peak": 0.9694,
+  "zcr": 564.0
+ },
+ "MMB COMPLEX": {
+  "rms_db": -7.45,
+  "peak": 0.8444,
+  "zcr": 2345.7
+ },
+ "MMB CONSOLE EQ": {
+  "rms_db": -21.55,
+  "peak": 0.5883,
+  "zcr": 564.3
+ },
+ "MMB CONV": {
+  "rms_db": -20.16,
+  "peak": 0.6824,
+  "zcr": 1841.0
+ },
+ "MMB CR-78 Kit": {
+  "rms_db": -27.08,
+  "peak": 0.8391,
+  "zcr": 56.0
+ },
+ "MMB CR78": {
+  "rms_db": -19.05,
+  "peak": 0.9561,
+  "zcr": 116.0
+ },
+ "MMB CS-80 Brass": {
+  "rms_db": -15.12,
+  "peak": 0.6657,
+  "zcr": 394.7
+ },
+ "MMB DIFFUSEUR": {
+  "rms_db": -25.23,
+  "peak": 0.2919,
+  "zcr": 633.0
+ },
+ "MMB DIGITAL ECHO": {
+  "rms_db": -22.75,
+  "peak": 0.6112,
+  "zcr": 1103.3
+ },
+ "MMB DIODE COMP": {
+  "rms_db": -23.76,
+  "peak": 0.5715,
+  "zcr": 569.3
+ },
+ "MMB DRAW VCO": {
+  "rms_db": -6.71,
+  "peak": 0.8,
+  "zcr": 784.0
+ },
+ "MMB DRIVE": {
+  "rms_db": -15.07,
+  "peak": 0.6366,
+  "zcr": 511.7
+ },
+ "MMB DX7": {
+  "rms_db": -23.45,
+  "peak": 0.5306,
+  "zcr": 526.7
+ },
+ "MMB ECHO": {
+  "rms_db": -24.25,
+  "peak": 0.4825,
+  "zcr": 1695.7
+ },
+ "MMB ELEMENTS": {
+  "rms_db": -33.45,
+  "peak": 0.7113,
+  "zcr": 794.7
+ },
+ "MMB ELEMENTS REVERB": {
+  "rms_db": -24.98,
+  "peak": 0.3544,
+  "zcr": 1827.3
+ },
+ "MMB ENSEMBLE": {
+  "rms_db": -26.55,
+  "peak": 0.2904,
+  "zcr": 615.0
+ },
+ "MMB EPIANO": {
+  "rms_db": -20.87,
+  "peak": 0.5582,
+  "zcr": 436.7
+ },
+ "MMB EXCITABLE": {
+  "rms_db": -26.86,
+  "peak": 0.3452,
+  "zcr": 391.3
+ },
+ "MMB FET COMP": {
+  "rms_db": -26.99,
+  "peak": 0.4994,
+  "zcr": 565.7
+ },
+ "MMB FM VCO": {
+  "rms_db": -4.95,
+  "peak": 0.8,
+  "zcr": 783.7
+ },
+ "MMB FOF": {
+  "rms_db": -22.04,
+  "peak": 0.2127,
+  "zcr": 1608.0
+ },
+ "MMB FOLDER": {
+  "rms_db": -13.97,
+  "peak": 0.9232,
+  "zcr": 582.0
+ },
+ "MMB FREQSHIFT": {
+  "rms_db": -23.2,
+  "peak": 0.6815,
+  "zcr": 939.0
+ },
+ "MMB GENDYN": {
+  "rms_db": -12.26,
+  "peak": 0.8,
+  "zcr": 2489.0
+ },
+ "MMB HALL": {
+  "rms_db": -21.54,
+  "peak": 0.6615,
+  "zcr": 1176.3
+ },
+ "MMB HARMONIZER": {
+  "rms_db": -25.37,
+  "peak": 0.3761,
+  "zcr": 783.3
+ },
+ "MMB LADDER": {
+  "rms_db": -23.49,
+  "peak": 0.4339,
+  "zcr": 912.3
+ },
+ "MMB LPG": {
+  "rms_db": -22.75,
+  "peak": 0.6096,
+  "zcr": 741.3
+ },
+ "MMB MARTENOT": {
+  "rms_db": -17.66,
+  "peak": 0.2736,
+  "zcr": 784.0
+ },
+ "MMB MATERIAL BRIDGE": {
+  "rms_db": -35.61,
+  "peak": 0.2598,
+  "zcr": 745.3
+ },
+ "MMB MIXTUR": {
+  "rms_db": -19.12,
+  "peak": 0.4854,
+  "zcr": 1317.0
+ },
+ "MMB MORPH WT": {
+  "rms_db": -5.39,
+  "peak": 0.76,
+  "zcr": 783.7
+ },
+ "MMB MS20": {
+  "rms_db": -21.81,
+  "peak": 0.4597,
+  "zcr": 362.3
+ },
+ "MMB NOISE": {
+  "rms_db": -9.2,
+  "peak": 0.6,
+  "zcr": 22102.7
+ },
+ "MMB OCTAVER": {
+  "rms_db": -16.09,
+  "peak": 0.8186,
+  "zcr": 384.0
+ },
+ "MMB OPTO COMP": {
+  "rms_db": -25.01,
+  "peak": 0.413,
+  "zcr": 570.3
+ },
+ "MMB ORGAN": {
+  "rms_db": -12.59,
+  "peak": 0.8542,
+  "zcr": 363.0
+ },
+ "MMB PARA EQ": {
+  "rms_db": -21.27,
+  "peak": 0.7424,
+  "zcr": 564.0
+ },
+ "MMB PEAKS": {
+  "rms_db": -22.24,
+  "peak": 0.7938,
+  "zcr": 33.7
+ },
+ "MMB PHASER": {
+  "rms_db": -19.93,
+  "peak": 0.8179,
+  "zcr": 684.0
+ },
+ "MMB PLAITS": {
+  "rms_db": -24.68,
+  "peak": 0.3156,
+  "zcr": 785.3
+ },
+ "MMB PROGRAM EQ": {
+  "rms_db": -21.49,
+  "peak": 0.5987,
+  "zcr": 563.0
+ },
+ "MMB PUMP": {
+  "rms_db": -32.64,
+  "peak": 0.6266,
+  "zcr": 564.0
+ },
+ "MMB Patch": {
+  "rms_db": -15.8,
+  "peak": 0.8377,
+  "zcr": 625.3
+ },
+ "MMB Patch #1 1-stemmig (mono)": {
+  "rms_db": -21.72,
+  "peak": 0.2738,
+  "zcr": 522.7
+ },
+ "MMB Patch #10 🕹️ SID ×3 (C64)": {
+  "rms_db": -13.93,
+  "peak": 0.8018,
+  "zcr": 572.0
+ },
+ "MMB Patch #100 🔥 String + Tube": {
+  "rms_db": -13.27,
+  "peak": 0.4897,
+  "zcr": 1191.0
+ },
+ "MMB Patch #101 ✨ Rings + Shimmer": {
+  "rms_db": -38.11,
+  "peak": 0.2476,
+  "zcr": 3634.0
+ },
+ "MMB Patch #102 🌀 Plaits + Stereo phaser": {
+  "rms_db": -23.97,
+  "peak": 0.4468,
+  "zcr": 802.7
+ },
+ "MMB Patch #103 🧪 Buchla-stem": {
+  "rms_db": -20.89,
+  "peak": 0.773,
+  "zcr": 623.3
+ },
+ "MMB Patch #104 🎚 Mixtur + Plate": {
+  "rms_db": -27.01,
+  "peak": 0.2607,
+  "zcr": 1221.7
+ },
+ "MMB Patch #105 🎐 Ondes Martenot": {
+  "rms_db": -20.96,
+  "peak": 0.1903,
+  "zcr": 779.0
+ },
+ "MMB Patch #106 🖥 Fairlight CMI": {
+  "rms_db": -22.25,
+  "peak": 0.346,
+  "zcr": 3235.0
+ },
+ "MMB Patch #107 🎐 Ondes ×4": {
+  "rms_db": -25.8,
+  "peak": 0.1659,
+  "zcr": 634.3
+ },
+ "MMB Patch #108 🔁 Arp + String echo": {
+  "rms_db": -23.54,
+  "peak": 0.3543,
+  "zcr": 4968.3
+ },
+ "MMB Patch #109 🥁 Ritmebox (CR-78)": {
+  "rms_db": -16.62,
+  "peak": 0.5678,
+  "zcr": 6525.3
+ },
+ "MMB Patch #11 🕹️ SID ×6 (2 chips, stereo)": {
+  "rms_db": -17.16,
+  "peak": 0.6244,
+  "zcr": 478.0
+ },
+ "MMB Patch #110 🧬 Acid jam": {
+  "rms_db": -17.35,
+  "peak": 0.5149,
+  "zcr": 1892.0
+ },
+ "MMB Patch #111 🌊 West Coast": {
+  "rms_db": -19.95,
+  "peak": 0.5558,
+  "zcr": 1440.0
+ },
+ "MMB Patch #112 🌌 Krell": {
+  "rms_db": -22.79,
+  "peak": 0.38,
+  "zcr": 5121.3
+ },
+ "MMB Patch #113 🎲 Generative jam": {
+  "rms_db": -36.68,
+  "peak": 0.0853,
+  "zcr": 2894.0
+ },
+ "MMB Patch #12 🕹️ SID ×9 (3 chips, stereo)": {
+  "rms_db": -17.74,
+  "peak": 0.6683,
+  "zcr": 569.3
+ },
+ "MMB Patch #13 🕹️ SID ×12 (4 chips, stereo)": {
+  "rms_db": -19.5,
+  "peak": 0.5788,
+  "zcr": 569.3
+ },
+ "MMB Patch #14 🕹️ SID 3-osc lead (mono)": {
+  "rms_db": -15.51,
+  "peak": 0.6397,
+  "zcr": 541.0
+ },
+ "MMB Patch #15 🕹️ SID 3-osc ×4 (poly)": {
+  "rms_db": -14.98,
+  "peak": 1.0117,
+  "zcr": 556.3
+ },
+ "MMB Patch #16 🎹 DX7 poly ×8": {
+  "rms_db": -23.83,
+  "peak": 0.504,
+  "zcr": 520.0
+ },
+ "MMB Patch #17 🎧 Sampler ×8 (cellen)": {
+  "rms_db": -37.21,
+  "peak": 0.0652,
+  "zcr": 404.7
+ },
+ "MMB Patch #18 📼 Tape strip ×8 (Mellotron)": {
+  "rms_db": -37.31,
+  "peak": 0.065,
+  "zcr": 9963.7
+ },
+ "MMB Patch #19 🎹 Organ ×12 (tonewheel + Rotary)": {
+  "rms_db": -15.21,
+  "peak": 0.85,
+  "zcr": 1101.0
+ },
+ "MMB Patch #2 2-stemmig": {
+  "rms_db": -18.5,
+  "peak": 0.5505,
+  "zcr": 688.7
+ },
+ "MMB Patch #20 🎹 E-piano ×12 (tine / reed)": {
+  "rms_db": -20.34,
+  "peak": 0.5931,
+  "zcr": 436.7
+ },
+ "MMB Patch #21 🎛️ Synthex ×8 (Elka)": {
+  "rms_db": -12.58,
+  "peak": 0.7093,
+  "zcr": 821.0
+ },
+ "MMB Patch #22 🎤 Zingende stem ×8": {
+  "rms_db": -200.0,
+  "peak": 0.0,
+  "zcr": 0.0
+ },
+ "MMB Patch #23 FOF Stem (mono)": {
+  "rms_db": -23.98,
+  "peak": 0.17,
+  "zcr": 1587.7
+ },
+ "MMB Patch #24 🎧 Sampler ×8 auto-wah": {
+  "rms_db": -27.46,
+  "peak": 0.1988,
+  "zcr": 372.7
+ },
+ "MMB Patch #25 🎧 Sampler ×8 auto-wah + FET": {
+  "rms_db": -29.45,
+  "peak": 0.1086,
+  "zcr": 370.0
+ },
+ "MMB Patch #26 🎧 Sampler ×8 + EQ + Vari-mu": {
+  "rms_db": -36.53,
+  "peak": 0.0679,
+  "zcr": 422.0
+ },
+ "MMB Patch #27 🎚 Mixtur (Trautonium)": {
+  "rms_db": -23.6,
+  "peak": 0.3719,
+  "zcr": 1057.0
+ },
+ "MMB Patch #28 🎚 Mixtur + Plate reverb": {
+  "rms_db": -27.01,
+  "peak": 0.2607,
+  "zcr": 1221.7
+ },
+ "MMB Patch #29 🖥 CMI (Fairlight-stem)": {
+  "rms_db": -18.71,
+  "peak": 0.3141,
+  "zcr": 819.7
+ },
+ "MMB Patch #3 4-stemmig": {
+  "rms_db": -15.8,
+  "peak": 0.8377,
+  "zcr": 625.3
+ },
+ "MMB Patch #30 🌊 Martenot + Palme": {
+  "rms_db": -20.96,
+  "peak": 0.1903,
+  "zcr": 779.0
+ },
+ "MMB Patch #31 🌊 Martenot + Métallique": {
+  "rms_db": -30.78,
+  "peak": 0.0703,
+  "zcr": 779.0
+ },
+ "MMB Patch #32 🧪 Acid (303-stijl bas)": {
+  "rms_db": -15.45,
+  "peak": 0.5353,
+  "zcr": 532.0
+ },
+ "MMB Patch #33 〽️ Fluit + FOLDER (West Coast)": {
+  "rms_db": -13.52,
+  "peak": 0.7105,
+  "zcr": 2183.7
+ },
+ "MMB Patch #34 🎻 Strijker + ENSEMBLE (string machine)": {
+  "rms_db": -33.54,
+  "peak": 0.1427,
+  "zcr": 1777.7
+ },
+ "MMB Patch #35 🦆 String + WAH (touch-wah)": {
+  "rms_db": -34.99,
+  "peak": 0.2383,
+  "zcr": 1687.3
+ },
+ "MMB Patch #36 🎸 String + DRIVE (overdrive/fuzz)": {
+  "rms_db": -20.49,
+  "peak": 0.4225,
+  "zcr": 1371.3
+ },
+ "MMB Patch #37 🔥 String + TUBE (buizenversterker)": {
+  "rms_db": -13.27,
+  "peak": 0.4897,
+  "zcr": 1191.0
+ },
+ "MMB Patch #38 🔔 Rings + FREQ SHIFT": {
+  "rms_db": -35.47,
+  "peak": 0.3056,
+  "zcr": 1742.0
+ },
+ "MMB Patch #39 〰️ Scanned (levende golftabel)": {
+  "rms_db": -25.08,
+  "peak": 0.3266,
+  "zcr": 1295.7
+ },
+ "MMB Patch #4 8-stemmig": {
+  "rms_db": -15.8,
+  "peak": 0.8377,
+  "zcr": 625.3
+ },
+ "MMB Patch #40 🎲 GENDYN (stochastisch)": {
+  "rms_db": -14.2,
+  "peak": 0.64,
+  "zcr": 2488.0
+ },
+ "MMB Patch #41 🫧 Excitable (prikkelbaar medium)": {
+  "rms_db": -25.15,
+  "peak": 0.2974,
+  "zcr": 391.3
+ },
+ "MMB Patch #42 Material Bridge (materiaalgeheugen)": {
+  "rms_db": -37.9,
+  "peak": 0.2078,
+  "zcr": 834.7
+ },
+ "MMB Patch #43 💍 Rings (resonator)": {
+  "rms_db": -33.7,
+  "peak": 0.4501,
+  "zcr": 0.0
+ },
+ "MMB Patch #44 🎛️ Plaits (24 engines)": {
+  "rms_db": -26.62,
+  "peak": 0.2521,
+  "zcr": 785.3
+ },
+ "MMB Patch #45 🔮 Plaits + BEADS": {
+  "rms_db": -27.15,
+  "peak": 0.2963,
+  "zcr": 2035.0
+ },
+ "MMB Patch #46 💎 Elements (modaal)": {
+  "rms_db": -33.76,
+  "peak": 0.5435,
+  "zcr": 958.0
+ },
+ "MMB Patch #47 🎻 STK (9 instrumenten)": {
+  "rms_db": -31.74,
+  "peak": 0.1988,
+  "zcr": 132.7
+ },
+ "MMB Patch #48 🎹 DX7 (6-op FM)": {
+  "rms_db": -23.72,
+  "peak": 0.3088,
+  "zcr": 524.0
+ },
+ "MMB Patch #49 🎚️ DX7 + FET comp": {
+  "rms_db": -31.03,
+  "peak": 0.1181,
+  "zcr": 530.7
+ },
+ "MMB Patch #5 16-stemmig": {
+  "rms_db": -15.8,
+  "peak": 0.8377,
+  "zcr": 625.3
+ },
+ "MMB Patch #50 🎚️ Rings + Opto comp": {
+  "rms_db": -37.01,
+  "peak": 0.218,
+  "zcr": 0.0
+ },
+ "MMB Patch #51 🎚️ Plaits + VCA-bus": {
+  "rms_db": -26.96,
+  "peak": 0.3827,
+  "zcr": 785.3
+ },
+ "MMB Patch #52 🎚️ Elements + Vari-mu": {
+  "rms_db": -47.88,
+  "peak": 0.1985,
+  "zcr": 914.0
+ },
+ "MMB Patch #53 🎚️ STK + Program EQ": {
+  "rms_db": -39.93,
+  "peak": 0.1641,
+  "zcr": 1391.0
+ },
+ "MMB Patch #54 🎚️ DX7 + Diode comp": {
+  "rms_db": -29.98,
+  "peak": 0.1855,
+  "zcr": 530.0
+ },
+ "MMB Patch #55 🎚️ Rings + Console EQ": {
+  "rms_db": -34.16,
+  "peak": 0.3577,
+  "zcr": 0.0
+ },
+ "MMB Patch #56 🎚️ Plaits + Para EQ": {
+  "rms_db": -29.27,
+  "peak": 0.2055,
+  "zcr": 786.0
+ },
+ "MMB Patch #57 🔁 Plaits + Stereo tape": {
+  "rms_db": -27.57,
+  "peak": 0.2017,
+  "zcr": 876.0
+ },
+ "MMB Patch #58 🔁 DX7 + Digital echo": {
+  "rms_db": -24.62,
+  "peak": 0.3005,
+  "zcr": 840.3
+ },
+ "MMB Patch #59 🌊 DX7 + BBD chorus": {
+  "rms_db": -24.53,
+  "peak": 0.3162,
+  "zcr": 11088.7
+ },
+ "MMB Patch #6 4-stemmig + aftertouch → filter": {
+  "rms_db": -15.8,
+  "peak": 0.8368,
+  "zcr": 625.3
+ },
+ "MMB Patch #60 💍 Rings + Ring mod": {
+  "rms_db": -32.76,
+  "peak": 0.3429,
+  "zcr": 1174.0
+ },
+ "MMB Patch #61 🎸 STK + Octaver": {
+  "rms_db": -38.46,
+  "peak": 0.1549,
+  "zcr": 1312.3
+ },
+ "MMB Patch #62 🎶 Plaits + Harmonizer": {
+  "rms_db": -27.02,
+  "peak": 0.2727,
+  "zcr": 1065.3
+ },
+ "MMB Patch #63 🏛️ Rings + Plate reverb": {
+  "rms_db": -36.94,
+  "peak": 0.2926,
+  "zcr": 3453.3
+ },
+ "MMB Patch #64 🪃 STK + Spring reverb": {
+  "rms_db": -36.01,
+  "peak": 0.1193,
+  "zcr": 169.3
+ },
+ "MMB Patch #65 🏛️ STK + HALL": {
+  "rms_db": -29.6,
+  "peak": 0.2143,
+  "zcr": 3385.0
+ },
+ "MMB Patch #66 ⛪ Rings + CONV": {
+  "rms_db": -34.49,
+  "peak": 0.3838,
+  "zcr": 3703.7
+ },
+ "MMB Patch #67 〰️ DX7 + Tremolo": {
+  "rms_db": -25.08,
+  "peak": 0.3579,
+  "zcr": 540.3
+ },
+ "MMB Patch #68 💡 DX7 + Vibe": {
+  "rms_db": -24.35,
+  "peak": 0.3622,
+  "zcr": 510.7
+ },
+ "MMB Patch #69 🌪️ DX7 + Rotary": {
+  "rms_db": -24.01,
+  "peak": 0.364,
+  "zcr": 1341.7
+ },
+ "MMB Patch #7 🎺 CS-80 koper (aftertouch)": {
+  "rms_db": -15.12,
+  "peak": 0.6657,
+  "zcr": 394.7
+ },
+ "MMB Patch #70 ✨ Rings + Shimmer": {
+  "rms_db": -38.11,
+  "peak": 0.2476,
+  "zcr": 3634.0
+ },
+ "MMB Patch #71 🌀 Plaits + Stereo phaser": {
+  "rms_db": -23.97,
+  "peak": 0.4468,
+  "zcr": 802.7
+ },
+ "MMB Patch #72 ☁️ Clouds ambient (+Tides)": {
+  "rms_db": -28.83,
+  "peak": 0.1088,
+  "zcr": 148.0
+ },
+ "MMB Patch #73 🎲 Generative jam (Marbles)": {
+  "rms_db": -36.68,
+  "peak": 0.0853,
+  "zcr": 2894.0
+ },
+ "MMB Patch #74 Material Bridge demo (frase)": {
+  "rms_db": -31.96,
+  "peak": 0.2523,
+  "zcr": 272.7
+ },
+ "MMB Patch #75 Reservoir demo (gedeelde bron)": {
+  "rms_db": -19.81,
+  "peak": 0.7076,
+  "zcr": 393.3
+ },
+ "MMB Patch #76 🧪 Acid jam (Clock + Euclid + Chaos)": {
+  "rms_db": -17.35,
+  "peak": 0.5149,
+  "zcr": 1892.0
+ },
+ "MMB Patch #77 🌊 West Coast (Turing + Folder + LPG)": {
+  "rms_db": -19.95,
+  "peak": 0.5558,
+  "zcr": 1440.0
+ },
+ "MMB Patch #78 🌀 Rungler (Benjolin-stijl chaos)": {
+  "rms_db": -13.43,
+  "peak": 0.2781,
+  "zcr": 219.7
+ },
+ "MMB Patch #79 🎛️ Buchla-stem (Complex + LPG)": {
+  "rms_db": -20.89,
+  "peak": 0.773,
+  "zcr": 623.3
+ },
+ "MMB Patch #8 🎹 Axel F-lead (2 saws)": {
+  "rms_db": -21.32,
+  "peak": 0.6912,
+  "zcr": 1574.3
+ },
+ "MMB Patch #80 🎚️ SEM sweep (LP → notch → HP)": {
+  "rms_db": -19.0,
+  "peak": 0.3986,
+  "zcr": 195.3
+ },
+ "MMB Patch #81 🥁 Ratchet trap (Grids + RATCHET)": {
+  "rms_db": -19.48,
+  "peak": 0.6221,
+  "zcr": 2738.3
+ },
+ "MMB Patch #82 🏠 French pump (PUMP-sidechain)": {
+  "rms_db": -17.88,
+  "peak": 0.4114,
+  "zcr": 199.7
+ },
+ "MMB Patch #83 🥁 Ritmebox (CR-78-presets)": {
+  "rms_db": -16.62,
+  "peak": 0.5678,
+  "zcr": 6525.3
+ },
+ "MMB Patch #84 🗣️ Warps vocoder": {
+  "rms_db": -21.57,
+  "peak": 0.6891,
+  "zcr": 2701.0
+ },
+ "MMB Patch #85 🎶 Koor zingt woorden (vocoder)": {
+  "rms_db": -21.97,
+  "peak": 0.685,
+  "zcr": 696.0
+ },
+ "MMB Patch #86 🎤 Koor zingt jouw stem (vocoder + mic)": {
+  "rms_db": -200.0,
+  "peak": 0.0,
+  "zcr": 0.0
+ },
+ "MMB Patch #87 🎶 Koor zingt jouw woorden (vocoder + ZANG)": {
+  "rms_db": -200.0,
+  "peak": 0.0,
+  "zcr": 0.0
+ },
+ "MMB Patch #88 🥁 808 jam (Peaks)": {
+  "rms_db": -21.6,
+  "peak": 0.747,
+  "zcr": 630.3
+ },
+ "MMB Patch #89 🌌 Krell (zelfspelend)": {
+  "rms_db": -22.79,
+  "peak": 0.38,
+  "zcr": 5121.3
+ },
+ "MMB Patch #9 🎐 Ondes ×4 (Martenot-ensemble)": {
+  "rms_db": -25.8,
+  "peak": 0.1659,
+  "zcr": 634.3
+ },
+ "MMB Patch #90 🎹 E-piano ×12": {
+  "rms_db": -20.34,
+  "peak": 0.5931,
+  "zcr": 436.7
+ },
+ "MMB Patch #91 🪗 Orgel ×12": {
+  "rms_db": -15.21,
+  "peak": 0.85,
+  "zcr": 1101.0
+ },
+ "MMB Patch #92 🎼 DX7 ×8": {
+  "rms_db": -23.83,
+  "peak": 0.504,
+  "zcr": 520.0
+ },
+ "MMB Patch #93 💡 DX7 E.Piano + Vibe": {
+  "rms_db": -27.97,
+  "peak": 0.4897,
+  "zcr": 586.7
+ },
+ "MMB Patch #94 🎞 Mellotron fluit ×8": {
+  "rms_db": -24.6,
+  "peak": 0.3035,
+  "zcr": 9921.0
+ },
+ "MMB Patch #95 🎻 Mellotron strijkers ×8": {
+  "rms_db": -21.06,
+  "peak": 0.4052,
+  "zcr": 1650.0
+ },
+ "MMB Patch #96 🎺 CS-80 koper ×4": {
+  "rms_db": -15.16,
+  "peak": 0.6798,
+  "zcr": 368.0
+ },
+ "MMB Patch #97 🎛 Synthex ×8": {
+  "rms_db": -12.58,
+  "peak": 0.7093,
+  "zcr": 821.0
+ },
+ "MMB Patch #98 🎸 Axel F lead": {
+  "rms_db": -21.32,
+  "peak": 0.6912,
+  "zcr": 1574.3
+ },
+ "MMB Patch #99 👾 SID ×3": {
+  "rms_db": -13.93,
+  "peak": 0.8018,
+  "zcr": 572.0
+ },
+ "MMB Poly 8": {
+  "rms_db": -15.8,
+  "peak": 0.8377,
+  "zcr": 625.3
+ },
+ "MMB RESONATOR": {
+  "rms_db": -21.86,
+  "peak": 0.3564,
+  "zcr": 652.3
+ },
+ "MMB REVERB": {
+  "rms_db": -24.39,
+  "peak": 0.5197,
+  "zcr": 1119.3
+ },
+ "MMB RINGMOD": {
+  "rms_db": -34.75,
+  "peak": 0.5511,
+  "zcr": 0.0
+ },
+ "MMB RINGS": {
+  "rms_db": -31.76,
+  "peak": 0.5595,
+  "zcr": 0.0
+ },
+ "MMB ROTARY": {
+  "rms_db": -21.08,
+  "peak": 0.5785,
+  "zcr": 1326.3
+ },
+ "MMB RUNGLER": {
+  "rms_db": -9.01,
+  "peak": 0.4335,
+  "zcr": 241.0
+ },
+ "MMB SAMPLER": {
+  "rms_db": -35.8,
+  "peak": 0.0767,
+  "zcr": 404.0
+ },
+ "MMB SCANNED": {
+  "rms_db": -23.14,
+  "peak": 0.4065,
+  "zcr": 1297.3
+ },
+ "MMB SEM": {
+  "rms_db": -20.57,
+  "peak": 0.5269,
+  "zcr": 423.7
+ },
+ "MMB SHIMMER": {
+  "rms_db": -25.23,
+  "peak": 0.4454,
+  "zcr": 1242.7
+ },
+ "MMB SID": {
+  "rms_db": -12.53,
+  "peak": 0.6662,
+  "zcr": 666.3
+ },
+ "MMB SID3": {
+  "rms_db": -12.17,
+  "peak": 1.0,
+  "zcr": 580.3
+ },
+ "MMB STEREO PHASER": {
+  "rms_db": -20.06,
+  "peak": 0.8175,
+  "zcr": 686.0
+ },
+ "MMB STEREO TAPE ECHO": {
+  "rms_db": -23.42,
+  "peak": 0.5939,
+  "zcr": 1488.0
+ },
+ "MMB STK SOUND": {
+  "rms_db": -29.79,
+  "peak": 0.2485,
+  "zcr": 132.7
+ },
+ "MMB STRING": {
+  "rms_db": -30.14,
+  "peak": 0.5605,
+  "zcr": 1319.0
+ },
+ "MMB SYNTHEX": {
+  "rms_db": -14.92,
+  "peak": 0.7558,
+  "zcr": 9063.3
+ },
+ "MMB TAPE ECHO": {
+  "rms_db": -23.46,
+  "peak": 0.5939,
+  "zcr": 1405.7
+ },
+ "MMB TAPESTRIP": {
+  "rms_db": -35.9,
+  "peak": 0.0764,
+  "zcr": 9966.3
+ },
+ "MMB TREMOLO": {
+  "rms_db": -23.48,
+  "peak": 0.6136,
+  "zcr": 564.0
+ },
+ "MMB TUBE": {
+  "rms_db": -11.74,
+  "peak": 0.9492,
+  "zcr": 436.0
+ },
+ "MMB VARIMU COMP": {
+  "rms_db": -25.82,
+  "peak": 0.416,
+  "zcr": 568.3
+ },
+ "MMB VCF": {
+  "rms_db": -21.98,
+  "peak": 0.6127,
+  "zcr": 327.0
+ },
+ "MMB VCO": {
+  "rms_db": -6.71,
+  "peak": 0.8,
+  "zcr": 783.7
+ },
+ "MMB VIBE": {
+  "rms_db": -22.79,
+  "peak": 0.7851,
+  "zcr": 766.0
+ },
+ "MMB WAH": {
+  "rms_db": -27.92,
+  "peak": 0.2389,
+  "zcr": 706.0
+ },
+ "MMB WARPS": {
+  "rms_db": -8.49,
+  "peak": 0.8,
+  "zcr": 791.3
+ },
+ "MMB WT VCO": {
+  "rms_db": -7.91,
+  "peak": 0.7999,
+  "zcr": 783.7
+ }
+}

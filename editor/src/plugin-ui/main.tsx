@@ -26,6 +26,7 @@ import { CmiPage4 } from '../modular-mb/CmiPage4';
 import { cmiVoices } from '../modular-mb/cmiSync';
 import { Dx7EditorModal } from '../modular-mb/Dx7EditorModal';
 import { WasmModule } from '../modular-mb/runtime';
+import { saveFileHost } from '../modular-mb/saveFile';
 import { dx7Host, setDx7RomSource } from '../modular-mb/runtime/audio/dx7Host';
 import { DX7_PLUGIN_PARAMS } from '../modular-mb/dx7PluginParams';
 import { getEngine } from '../modular-mb/sim/engineSingleton';
@@ -34,7 +35,7 @@ import { seedInternals } from '../modular-mb/seedModules';
 import { setHostBank, setHostBankList } from '../modular-mb/sim/bankAutoLoad';
 import { emptyModularProject, type Control, type ControlValue, type ModularProject, type Patch } from '../modular-mb/types';
 import {
-  attach, bankList, chooseBank, choosePatchFile, clearBank, inPlugin, log, noteToPlugin, patchGet, patchLive, patchLoad, resizeTo, watchBank, watchPatch, watchPatchFile,
+  attach, bankList, chooseBank, choosePatchFile, clearBank, inPlugin, log, noteToPlugin, patchGet, patchLive, patchLoad, resizeTo, saveFileInPlugin, watchBank, watchPatch, watchPatchFile,
   type BankInfo, type Handle, type Kind, type PatchState,
 } from './juceBridge';
 
@@ -491,6 +492,7 @@ function PatchView({ built, slots, topPx }: { built: PatchViewData; slots: boole
  *  schermtoetsenbord als MIDI de plugin in. Eén keer, bij het starten. */
 function routeSubeditorsToPlugin(): void {
   if (!inPlugin) return;
+  saveFileHost.current = saveFileInPlugin;
   WasmModule.remote = {
     blob: (target, type, slot, data) => { void patchLive({ op: 'blob', target, type, slot, b64: int16ToBase64(data) }); },
     ctl: (target, id, v) => { void patchLive({ op: 'ctl', target, id, v }); },

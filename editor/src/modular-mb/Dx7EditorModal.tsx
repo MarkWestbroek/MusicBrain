@@ -21,6 +21,7 @@ import {
   DX7_ROTO_CHANNEL, DX7_ROTO_PAGES, DX7_ROTO_BUTTONS, knobCc, buttonCc,
   paramForCc, buttonForCc, paramOffset, rotoFeedback, exportDx7RotoSetup,
 } from './dx7Roto';
+import { saveFile } from './saveFile';
 import { addCcTap, sendCc, useSurfaceBridge } from './surfaceBridge';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -160,13 +161,9 @@ export function Dx7EditorModal({ open, onClose, plugin }: { open: boolean; onClo
     syx.set(body, 6);
     syx[4102] = (128 - sum) & 0x7f;
     syx[4103] = 0xf7;
-    const url = URL.createObjectURL(new Blob([syx], { type: 'application/octet-stream' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${patchName(patch).trim().replace(/[^\w-]+/g, '_') || 'voice'}.syx`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setBusy('.syx geschreven — laadt in onze USER-bank én in een echte DX7');
+    void saveFile(`${patchName(patch).trim().replace(/[^\w-]+/g, '_') || 'voice'}.syx`, syx).then((ok) => {
+      if (ok) setBusy('.syx geschreven — laadt in onze USER-bank én in een echte DX7');
+    });
   }
 
   function exportRoto(): void {

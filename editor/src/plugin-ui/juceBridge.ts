@@ -64,6 +64,13 @@ export async function patchLive(msg: PatchLive): Promise<unknown> {
   if (!inPlugin) return undefined;
   return getNativeFunction('mmbPatchLive')(msg) as Promise<unknown>;
 }
+/** Bewaarvenster van de plugin (de webview kan niet downloaden). */
+export async function saveFileInPlugin(name: string, data: Uint8Array): Promise<boolean> {
+  if (!inPlugin) return false;
+  let bin = '';
+  for (let i = 0; i < data.length; i += 0x8000) bin += String.fromCharCode(...data.subarray(i, i + 0x8000));
+  return (await getNativeFunction('mmbSaveFile')(name, btoa(bin))) === true;
+}
 /** Een noot naar de plugin, alsof hij van de DAW kwam (schermtoetsenbord van de subeditors). */
 export const noteToPlugin = (note: number, velocity: number): void => { if (inPlugin) void getNativeFunction('mmbNote')(note, velocity); };
 /** Een andere patch in de plugin (presetmenu van de DAW, of een project dat opent). */
