@@ -572,9 +572,22 @@ in het venster.
   `patchgeneric_plugin.cpp` en `patch_generic.cmake`. MMB Patch linkt
   zonder LTO (`NOLTO`). Een eigen bouwmap met alleen MMB Patch configureert
   in een halve minuut: `-DMMB_ONLY_PATCH=ON` (README).
-- **Nog niet:** de modules op andere rates in de motor (resampler per
-  module), banken in een patch, een patch uit de editor rechtstreeks naar
-  de plugin sturen, fabriekspresets in het presetmenu van de DAW.
+- **Andere rates en blokgroottes (2026-11-01).** Een module met
+  `MMB_RATE_FLEX` gaat vóór init naar 44,1 kHz; de rest draait achter een
+  fifo met een Lagrange-resampler per audiopoort (`Resampled` in
+  `PatchEngine.h`), met een paar blokken vertraging voor die module.
+  Plaits en DX7 klinken op 440 Hz bij A4. Ook nieuw: een module met een
+  blok kleiner dan 32 geeft zijn hele motorblok door (eerst las wie erna
+  kwam alleen het laatste subblok), en `out`/`aux` zijn aliassen voor
+  `out_l`/`out_r`, zoals de firmware ze heeft (Plaits, Warps). Daarmee
+  klinken **113 van de 125** catalogpatches. Niet: banken (10), een
+  microfooningang (1), en "Rings + FREQ SHIFT": die kabelt alleen
+  `out_l`, en die is bij Rings stil, ook in de losse RINGS-plugin
+  (doorgegeven aan MODULES).
+- **Nog niet:** banken in een patch, een patch uit de editor rechtstreeks
+  naar de plugin sturen, fabriekspresets in het presetmenu van de DAW. De
+  vaste patch-plugins (Poly 8, CS-80) krijgen de nieuwe motor bij hun
+  volgende build.
 
 ## 3. Wat het kostte en wat het zou kosten
 

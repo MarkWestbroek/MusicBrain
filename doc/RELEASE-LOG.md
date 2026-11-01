@@ -101,6 +101,19 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — Patchmotor: Plaits, Rings, Elements, Clouds, DX7 en Warps erbij
+<!-- EN: Patch engine: modules at other sample rates or block sizes now run behind a resampler; 113 of 125 catalogue patches play -->
+- Modules die op 32 of 48 kHz of met een andere blokgrootte rekenen,
+  draaien in de patchmotor achter een fifo met resampler (`PatchEngine.h`).
+  In MMB Patch klinken nu 113 van de 125 catalogpatches (was 71). Plaits
+  en DX7 meten op A4 precies 440 Hz.
+- `out`/`aux` werken als `out_l`/`out_r`, zoals in de firmware: de
+  Plaits-seeds (en Clouds ambient, Generative jam) kabelen zo.
+- Modules met een blok kleiner dan 32 gaven alleen hun laatste subblok
+  door aan de volgende module; nu het hele motorblok.
+- Gevonden, niet van de motor: Rings geeft bij een losse noot niets op
+  `out_l` (ook de losse plugin), dus "Rings + FREQ SHIFT" is stil.
+
 ### 2026-10-30 — MMB Patch: elke patch in één plugin
 <!-- EN: MMB Patch: one plugin that plays any patch from the catalogue or an editor project -->
 - Nieuwe AU/VST3 "MMB Patch": kies in het venster een patch uit de

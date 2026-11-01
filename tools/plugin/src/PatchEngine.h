@@ -23,6 +23,13 @@
 //  - Kabels die audio en CV mengen, slaat de firmware over; hier ook.
 //  - `attenuation` op een kabel geldt als versterking (zoals de simulator).
 //
+// Modules op een andere rate of blokgrootte (Plaits/Rings 48 kHz, Elements/
+// Clouds 32 kHz, DX7 blok 64, Warps blok 60): eerst mag een module met
+// MMB_RATE_FLEX zelf naar 44,1 kHz (setRate vóór init). Lukt dat niet, dan
+// draait hij achter een fifo met een Lagrange-resampler per audiopoort, zoals
+// HostProcessor dat voor een losse plugin doet ("Resampled"). Dat kost hem
+// een paar blokken vertraging; zijn CV-poorten gaan gewoon via de bridge.
+//
 // Bypass (plugin-patches.md §9): de pseudo-knop `__bypass` in controlState.
 // Welke modules en hoe staat per type in "bypass" naast "project" in de JSON
 // (de generator haalt het uit bypassRoute.ts): { "own": true } = de module
@@ -33,6 +40,7 @@
 
 #include "W2cRuntime.h"
 
+#include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
 #include <algorithm>
@@ -75,11 +83,20 @@ public:
                     const W2cVtable* vt = factory(type);
                     if (!vt) { std::printf("[mmb] patch: %s (%s) heeft geen wasm, overgeslagen\n", id.c_str(), type.c_str()); continue; }
                     node->host = std::make_unique<W2cHost>(*vt);
+                    node->host->setRate(static_cast<float>(kRate));   // alleen met MMB_RATE_FLEX
                     node->host->init();
                     const float rate = node->host->nativeRate();
                     const int block = node->host->block();
                     if (block == 1 && rate == 1000.0f) node->kind = Node::Cv;
-                    else if (rate == static_cast<float>(kRate) && block > 0 && kBlock % block == 0) node->kind = Node::Audio;
+                    else if (rate == static_cast<float>(kRate) && block > 0 && kBlock % block == 0) {
+                        node->kind = Node::Audio;
+                        if (block < kBlock) node->full.assign(static_cast<std::size_t>(node->host->numOutputs()), std::vector<float>(kBlock, 0.0f));
+                    }
+                    else if (rate > 0.0f && block > 0 && block <= kMaxForeignBlock) {
+                        node->kind = Node::Audio;
+                        node->rs = std::make_unique<Resampled>(*node->host, rate, block);
+                        std::printf("[mmb] patch: %s draait op %.0f Hz, blok %d, met een resampler\n", type.c_str(), rate, block);
+                    }
                     else { error = juce::String(type) + ": " + juce::String(rate) + " Hz, blok " + juce::String(block) + " kan nog niet in een patch"; return false; }
                     node->block = block;
                     if (node->host->hasMidi()) midiNodes_.push_back(node.get());
@@ -184,8 +201,34 @@ public:
     }
 
 private:
+    static constexpr int kMaxForeignBlock = 256;   // bypassBlock rekent op de stack met deze maat
+
+    /** Een module op een andere rate of blokgrootte: fifo's en resamplers om
+     *  hem heen. In: per audio-ingang 44,1 kHz → eigen rate; uit: per
+     *  audio-uitgang terug, kBlock samples per motorblok in `out`. */
+    struct Resampled {
+        Resampled(W2cHost& h, float rate, int block) : ratio(rate / kRate), block(block) {
+            for (int i = 0; i < h.numInputs(); ++i) if (h.inputKind(i) == kPortAudio_) ins.push_back(i);
+            for (int o = 0; o < h.numOutputs(); ++o) if (h.outputKind(o) == kPortAudio_) outs.push_back(o);
+            in.assign(ins.size(), {}); inInterp.resize(ins.size());
+            outFifo.assign(outs.size(), {}); outInterp.resize(outs.size());
+            out.assign(static_cast<std::size_t>(h.numOutputs()), std::vector<float>(kBlock, 0.0f));
+            // Voorsprong: twee eigen blokken stilte, zodat er altijd genoeg is.
+            for (auto& f : outFifo) f.assign(static_cast<std::size_t>(2 * block + 8), 0.0f);
+        }
+        double ratio;                 // eigen samples per motorsample
+        int block;
+        double carry = 0.0;
+        int pending = 0;              // eigen samples die de module nog moet rekenen
+        std::vector<int> ins, outs;   // poortnummers van de audiopoorten
+        std::vector<std::vector<float>> in, outFifo, out;
+        std::vector<juce::LagrangeInterpolator> inInterp, outInterp;
+    };
+
     struct Node {
         enum Kind { Cv, Audio, Mixer, Out } kind = Audio;
+        std::unique_ptr<Resampled> rs;   // niet null: andere rate of blokgrootte
+        std::vector<std::vector<float>> full;   // blok < kBlock: de uitgangen over het hele motorblok
         std::string id, type;
         std::unique_ptr<W2cHost> host;
         int block = kBlock;
@@ -241,7 +284,14 @@ private:
         return -1;
     }
     static int outIndex(Node& n, const std::string& p) {
-        if (n.host) return n.host->outputIndex(p);
+        if (n.host) {
+            const int i = n.host->outputIndex(p);
+            if (i >= 0) return i;
+            // Paneelnamen die de firmware aliast (PlaitsModule.h): out → out_l, aux → out_r.
+            if (p == "out") return n.host->outputIndex("out_l");
+            if (p == "aux") return n.host->outputIndex("out_r");
+            return -1;
+        }
         if (n.kind == Node::Mixer) return p == "out_l" ? 0 : p == "out_r" ? 1 : -1;
         return -1;
     }
@@ -289,20 +339,76 @@ private:
         }
     }
 
-    const float* source(AudioCable& c, int offset) {
+    /** Uitgang van een kabelbron, voor subblok @p offset van het motorblok. */
+    static const float* source(AudioCable& c, int offset) {
+        if (c.src->rs) return c.src->rs->out[static_cast<std::size_t>(c.out)].data() + offset;
+        if (c.src->host && !c.src->full.empty()) return c.src->full[static_cast<std::size_t>(c.out)].data() + offset;
         if (c.src->host) return c.src->host->outBuf(c.out);
         return c.src->out[c.out] + offset;
     }
 
+    /** Een motorblok voor een module achter de resampler. */
+    void renderResampled(Node& n) {
+        Resampled& r = *n.rs;
+        // Ingangen op 44,1 kHz verzamelen en naar de eigen rate.
+        const double want = kBlock * r.ratio + r.carry;
+        const int native = static_cast<int>(want);
+        r.carry = want - native;
+        float gathered[kBlock];
+        for (std::size_t a = 0; a < r.ins.size(); ++a) {
+            std::fill(gathered, gathered + kBlock, 0.0f);
+            for (auto& c : audio_) {
+                if (c.dst != &n || c.in != r.ins[a]) continue;
+                const float* s = source(c, 0);
+                for (int k = 0; k < kBlock; ++k) gathered[k] += c.gain * s[k];
+            }
+            auto& f = r.in[a];
+            const std::size_t at = f.size();
+            f.resize(at + static_cast<std::size_t>(native));
+            if (r.ratio == 1.0) std::copy(gathered, gathered + native, f.begin() + static_cast<long>(at));
+            else r.inInterp[a].process(1.0 / r.ratio, gathered, f.data() + at, native, kBlock, 0);
+        }
+        // De module in zijn eigen blokken; zonder audio-ingang telt alleen de klok.
+        r.pending += native;
+        while (r.pending >= r.block) {
+            for (std::size_t a = 0; a < r.ins.size(); ++a) {
+                auto& f = r.in[a];
+                float* dst = n.host->inBuf(r.ins[a]);
+                const std::size_t take = std::min<std::size_t>(f.size(), static_cast<std::size_t>(r.block));
+                std::copy(f.begin(), f.begin() + static_cast<long>(take), dst);
+                std::fill(dst + take, dst + r.block, 0.0f);
+                f.erase(f.begin(), f.begin() + static_cast<long>(take));
+            }
+            if (n.dry.empty() || (n.byp == 0.0f && n.bypTarget == 0.0f)) n.host->process(r.block);
+            else bypassBlock(n);
+            for (std::size_t o = 0; o < r.outs.size(); ++o) {
+                const float* src = n.host->outBuf(r.outs[o]);
+                r.outFifo[o].insert(r.outFifo[o].end(), src, src + r.block);
+            }
+            r.pending -= r.block;
+        }
+        // Terug naar 44,1 kHz: kBlock samples per uitgang.
+        for (std::size_t o = 0; o < r.outs.size(); ++o) {
+            auto& f = r.outFifo[o];
+            float* dst = r.out[static_cast<std::size_t>(r.outs[o])].data();
+            const int need = static_cast<int>(std::ceil(kBlock * r.ratio)) + 4;
+            if (static_cast<int>(f.size()) < need) f.insert(f.begin(), static_cast<std::size_t>(need) - f.size(), 0.0f);
+            int used;
+            if (r.ratio == 1.0) { std::copy(f.begin(), f.begin() + kBlock, dst); used = kBlock; }
+            else used = r.outInterp[o].process(r.ratio, f.data(), dst, kBlock, static_cast<int>(f.size()), 0);
+            f.erase(f.begin(), f.begin() + used);
+        }
+    }
+
     /** Eén subblok met bypass: invoer dicht naar mate van byp (trails), droog erbij. */
     void bypassBlock(Node& n) {
-        float g[kBlock];
+        float g[kMaxForeignBlock];
         for (int k = 0; k < n.block; ++k) {
             n.byp += n.byp < n.bypTarget ? (std::min)(kBypassStep, n.bypTarget - n.byp) : -(std::min)(kBypassStep, n.byp - n.bypTarget);
             g[k] = n.byp;
         }
         // Droge kopie van de gebruikte ingangen, dan de invoer van het effect dichtdraaien.
-        float dryIn[8][kBlock];
+        float dryIn[8][kMaxForeignBlock];
         int used[8], nUsed = 0;
         for (auto& [o, i, f] : n.dry) {
             if (std::find(used, used + nUsed, i) != used + nUsed || nUsed == 8) continue;
@@ -324,6 +430,7 @@ private:
     }
 
     void render(Node& n, float* l, float* r) {
+        if (n.rs) { renderResampled(n); return; }
         if (n.host) {
             for (int off = 0; off < kBlock; off += n.block) {
                 // Audio-ingangen: de som van hun kabels.
@@ -333,12 +440,17 @@ private:
                     std::fill(in, in + n.block, 0.0f);
                     for (auto& c : audio_) {
                         if (c.dst != &n || c.in != i) continue;
-                        const float* s = c.src->host ? c.src->host->outBuf(c.out) : c.src->out[c.out] + off;
+                        const float* s = source(c, off);
                         for (int k = 0; k < n.block; ++k) in[k] += c.gain * s[k];
                     }
                 }
-                if (n.dry.empty() || (n.byp == 0.0f && n.bypTarget == 0.0f)) { n.host->process(n.block); continue; }
-                bypassBlock(n);
+                if (n.dry.empty() || (n.byp == 0.0f && n.bypTarget == 0.0f)) n.host->process(n.block);
+                else bypassBlock(n);
+                // Kleiner blok: elk subblok bewaren, zodat wie erna komt het hele motorblok leest.
+                for (std::size_t o = 0; o < n.full.size(); ++o) {
+                    const float* src = n.host->outBuf(static_cast<int>(o));
+                    std::copy(src, src + n.block, n.full[o].begin() + off);
+                }
             }
             return;
         }
@@ -346,7 +458,7 @@ private:
         for (auto& row : n.in) std::fill(row, row + kBlock, 0.0f);
         for (auto& c : audio_) {
             if (c.dst != &n) continue;
-            const float* s = c.src->host ? c.src->host->outBuf(c.out) : c.src->out[c.out];
+            const float* s = source(c, 0);
             for (int k = 0; k < kBlock; ++k) n.in[c.in][k] += c.gain * s[k];
         }
         if (n.kind == Node::Mixer) {
