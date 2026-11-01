@@ -127,8 +127,9 @@ public:
                     if (type == "tp_mmb_rhythm") rhythmNodes_.push_back(node.get());
                     // Samplebanken (sampler, TAPE STRIP, PERCUTER): de Bank-knop kiest een
                     // .mmbs uit de bankmap; laden doet loadBanks() (buiten de audiothread).
+                    // ZANG: een lyricbank (.mmbl) als één blob op slot = banknummer.
                     if (node->host->hasBank() && type != "tp_mmb_zang") { node->bankNode = true; node->wantBank = 0; bankNodes_.push_back(node.get()); }
-                    // ZANG (lyricbanken) laadt de motor nog niet: zo'n module blijft stil.
+                    else if (type == "tp_mmb_zang" && node->host->hasBlobs()) { node->bankNode = node->lyric = true; node->wantBank = 0; bankNodes_.push_back(node.get()); }
                     else if (type == "tp_mmb_zang" &&
                         std::find(needsBank_.begin(), needsBank_.end(), type) == needsBank_.end()) {
                         needsBank_.push_back(type);
@@ -214,8 +215,8 @@ public:
     double now() const { return clock_; }
 
     /** Eén blok van kBlock samples; @p l en @p r krijgen de uitgang. */
-    /** Leest de bank van knopstand n (de bankmap); false als die er niet is. */
-    using BankReader = std::function<bool(int knob, juce::MemoryBlock& data)>;
+    /** Leest de bank van knopstand n (samplebank of, @p lyric, lyricbank); false als die er niet is. */
+    using BankReader = std::function<bool(bool lyric, int knob, juce::MemoryBlock& data)>;
 
     /** Wacht er een Bank-knop op een andere bank? */
     bool banksPending() const {
@@ -228,23 +229,37 @@ public:
      * speelt. Fouten komen in @p errors ("SAMPLER: geen bank 21").
      */
     void loadBanks(const BankReader& read, const juce::CriticalSection* lock, juce::StringArray& errors) {
-        std::map<int, juce::MemoryBlock> cache;   // een poly-groep vraagt acht keer dezelfde bank
+        std::map<int, juce::MemoryBlock> cache;   // een poly-groep vraagt acht keer dezelfde bank (sleutel: lyric·1000 + knop)
         for (Node* n : bankNodes_) {
             const int want = n->wantBank.load();
             if (want == n->loadedBank) continue;
-            auto it = cache.find(want);
+            const int key = (n->lyric ? 1000 : 0) + want;
+            auto it = cache.find(key);
             if (it == cache.end()) {
                 juce::MemoryBlock data;
-                if (!read(want, data)) data.reset();
-                it = cache.emplace(want, std::move(data)).first;
+                if (!read(n->lyric, want, data)) data.reset();
+                it = cache.emplace(key, std::move(data)).first;
             }
             n->loadedBank = want;
             const juce::String who = juce::String(n->type).fromFirstOccurrenceOf("tp_mmb_", false, false).toUpperCase();
-            if (it->second.getSize() == 0) { errors.addIfNotAlreadyThere(who + ": geen bank " + juce::String(want) + " in de bankmap"); continue; }
+            if (it->second.getSize() == 0) {
+                errors.addIfNotAlreadyThere(who + (n->lyric ? ": geen lyricbank " + juce::String(want).paddedLeft('0', 2) + ".mmbl in de map lyrics (maak er een met Zang in de editor)"
+                                                            : ": geen bank " + juce::String(want) + " in de bankmap"));
+                continue;
+            }
             juce::String error;
-            bool ok;
-            if (lock) { const juce::ScopedLock sl(*lock); ok = applyMmbs(*n->host, it->second.getData(), it->second.getSize(), error); }
-            else ok = applyMmbs(*n->host, it->second.getData(), it->second.getSize(), error);
+            bool ok = true;
+            const auto apply = [&] {
+                if (!n->lyric) { ok = applyMmbs(*n->host, it->second.getData(), it->second.getSize(), error); return; }
+                // Lyricbank: het hele bestand als blob op slot = banknummer (zang_wasm.cc).
+                const int bytes = static_cast<int>((it->second.getSize() + 1) & ~static_cast<std::size_t>(1));
+                int16_t* dst = n->host->blobPtr(want, bytes);
+                if (!dst) { ok = false; error = "geen geheugen voor de lyricbank"; return; }
+                std::memset(dst, 0, static_cast<std::size_t>(bytes));
+                std::memcpy(dst, it->second.getData(), it->second.getSize());
+                n->host->blobCommit(want, bytes / 2, 44100.0f, 1);
+            };
+            if (lock) { const juce::ScopedLock sl(*lock); apply(); } else apply();
             if (!ok) errors.addIfNotAlreadyThere(who + ": " + error);
         }
     }
@@ -335,6 +350,7 @@ private:
         enum Kind { Cv, Audio, Mixer, Out } kind = Audio;
         std::unique_ptr<Resampled> rs;   // niet null: andere rate of blokgrootte
         bool bankNode = false;           // samplebank via de Bank-knop
+        bool lyric = false;              // ZANG: lyricbank in plaats van samplebank
         std::atomic<int> wantBank { -1 };   // gevraagd (audiothread schrijft)
         int loadedBank = -1;                // erin (message-thread)
         std::vector<std::vector<float>> full;   // blok < kBlock: de uitgangen over het hele motorblok

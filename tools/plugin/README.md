@@ -170,6 +170,9 @@ een losse `.mmbs`; die gaat mee in het project. Controleren zonder DAW:
 `MmbPluginCheck <vst3> uit.wav 3 bank=3 notes=48,60` of
 `ownbank=<pad naar .mmbs>`.
 
+Lyricbanken voor ZANG (in MMB Patch) staan naast de bankmap in `lyrics/`,
+als `NN.mmbl` (zoals `/mmb/lyrics` op de Teensy).
+
 ## Een nieuwe module
 
 Een module met een wasm-gastheer en een regel in `tools/mmb-wasm/build.sh`

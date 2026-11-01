@@ -588,7 +588,9 @@ in het venster.
   PERCUTER in de patch laadt de bank van zijn Bank-knop uit de bankmap
   (`PatchEngine::loadBanks`, `MmbsLoad.h`); een knopwissel laadt MMB Patch
   op de message-thread (timer). 122 van de 125 catalogpatches klinken.
-- **Nog niet:** lyricbanken (ZANG), een patch uit de editor rechtstreeks
+- **Lyricbanken:** ZANG leest `lyrics/NN.mmbl` naast de bankmap, als één
+  blob op slot = banknummer (`zang_wasm.cc`).
+- **Nog niet:** een patch uit de editor rechtstreeks
   naar de plugin sturen, fabriekspresets in het presetmenu van de DAW. De
   vaste patch-plugins (Poly 8, CS-80) krijgen de nieuwe motor bij hun
   volgende build.

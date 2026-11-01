@@ -127,8 +127,14 @@
   leest het bestand één keer.
 - Het laden van een `.mmbs` is één gedeelde functie (`MmbsLoad.h`) voor de
   losse plugins en de patchmotor.
-- In MMB Patch klinken nu 122 van de 125 catalogpatches. Over: ZANG
-  (lyricbanken, 2 patches) en de vocoder met microfoon (1).
+- ZANG laadt zijn lyricbank uit `MusicBrain/lyrics/NN.mmbl` naast de
+  bankmap (op de Mac `~/Library/Application Support/MusicBrain/lyrics`),
+  zoals `/mmb/lyrics` op de Teensy. Zo'n bank maak je met 🎤 Zang in de
+  editor; staat hij er niet, dan meldt de plugin dat. Getest met een bank
+  van `say` ("la la la"): ZANG zingt.
+- In MMB Patch klinken nu alle catalogpatches, op de vocoder met
+  microfoon na (een instrumentplugin heeft geen audio-ingang); Zang alleen
+  met een eigen lyricbank.
 - `MmbPluginCheck` laat tijdens het renderen de message-loop lopen, zodat
   timers van de plugin meedoen.
 

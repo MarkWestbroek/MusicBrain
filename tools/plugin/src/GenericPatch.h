@@ -254,9 +254,11 @@ private:
         std::fflush(stdout);
         return true;
     }
-    /** Bank van knopstand @p knob uit de bankmap (dezelfde als SAMPLER en TAPESTRIP). */
-    static bool readBank(int knob, juce::MemoryBlock& data) {
-        const juce::File f = bankKnobFile(knob);
+    /** Bank van knopstand @p knob: een samplebank uit de bankmap (dezelfde als SAMPLER en TAPESTRIP),
+     *  of een lyricbank lyrics/NN.mmbl naast de bankmap (zoals /mmb/lyrics op de Teensy). */
+    static bool readBank(bool lyric, int knob, juce::MemoryBlock& data) {
+        const juce::File f = lyric ? bankDir().getSiblingFile("lyrics").getChildFile(juce::String(knob).paddedLeft('0', 2) + ".mmbl")
+                                   : bankKnobFile(knob);
         return f.existsAsFile() && f.loadFileAsData(data);
     }
     /** Een Bank-knop draaide (slot of automation): de nieuwe bank laden, buiten de audiothread. */
