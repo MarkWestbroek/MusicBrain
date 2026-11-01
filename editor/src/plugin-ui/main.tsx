@@ -392,6 +392,41 @@ function PatchView({ built, slots, topPx }: { built: PatchViewData; slots: boole
   );
 }
 
+/** De CR-78 Kit (Cr78KitPlugin.cpp): per klank een rij schuiven, met zijn noot. */
+const KIT_VOICES: [string, string][] = [
+  ['Kick', '36'], ['Snare', '38'], ['Rim', '37'], ['Claves', '75'], ['Cowbell', '56'], ['HiHat', '42 46'],
+  ['Cymbal', '49 51'], ['Maracas', '70'], ['Guiro', '73'], ['Bongo', '60 61'], ['Conga', '62 63 64'], ['Tamb', '54'],
+];
+function KitApp() {
+  const modules = useMemo<ExpertModule[]>(() => {
+    const knob = (id: string, label: string, min: number, max: number, def: number): Control =>
+      ({ kind: 'knob', id, label, min, max, defaultValue: def, size: 'small' } as unknown as Control);
+    const voices = KIT_VOICES.map(([name, notes], i): ExpertModule => {
+      const v = `v${i + 1}`;
+      const ctl: [string, string, number, number, number][] = [['tone', 'Tone', 0, 1, 0.5], ['decay', 'Decay', 0, 1, 0.5], ['bend', 'Bend', 0, 1, 0.5], ['level', 'Level', 0, 1, 0.8], ['pan', 'Pan', -1, 1, 0]];
+      return { moduleId: v, name: `${name} · noot ${notes}`, displays: [],
+        params: ctl.map(([id, label, mn, mx, d]) => ({ id: `${v}_${id}`, moduleId: v, controlId: id, label: `${name} ${label}`, control: knob(id, label, mn, mx, d) })) };
+    });
+    return [{ moduleId: 'kit', name: 'Kit', displays: [], params: [{ id: 'master', moduleId: 'kit', controlId: 'master', label: 'Master', control: knob('master', 'Master', 0, 1, 0.8) }] }, ...voices];
+  }, []);
+  const [state, setState] = useState<Record<string, Record<string, ControlValue>>>({});
+  const handles = useRef<Record<string, Handle>>({});
+  const pxPerMm = Math.max(1, window.innerHeight / 128);
+  useEffect(() => {
+    for (const m of modules) for (const p of m.params)
+      handles.current[p.id] = attach(p.id, 'slider', (v) => setState((s) => ({ ...s, [p.moduleId]: { ...s[p.moduleId], [p.controlId]: v } })));
+    const t = window.setTimeout(() => { for (const h of Object.values(handles.current)) h.refresh(); }, 300);
+    return () => window.clearTimeout(t);
+  }, [modules]);
+  return (
+    <div style={{ background: '#14171d', minHeight: '100vh' }}>
+      <ExpertView modules={modules} state={state} pxPerMm={pxPerMm} height={window.innerHeight}
+        onChange={(p, v) => { setState((s) => ({ ...s, [p.moduleId]: { ...s[p.moduleId], [p.controlId]: v } })); handles.current[p.id]?.set(v as number); }} />
+      {inPlugin && <ResizeGrip size={Math.max(14, pxPerMm * 4)} />}
+    </div>
+  );
+}
+
 /** Typen van het project, met de ingebouwde waar die bestaan (nieuwer dan een opgeslagen kopie). */
 function withBuiltinTypes(project: ModularProject, base: ModularProject): ModularProject {
   const builtin = new Map(base.moduleTypes.map((t) => [t.id, t]));
@@ -479,6 +514,6 @@ const typeId = new URLSearchParams(window.location.search).get('type') ?? 'tp_mm
 document.title = inPlugin ? 'MMB' : `MMB ${typeId} (los, geen plugin)`;
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {typeId === 'patch_generic' ? <GenericPatchApp /> : typeId.startsWith('patch_') ? <PatchApp typeId={typeId} /> : <App typeId={typeId} />}
+    {typeId === 'kit_cr78' ? <KitApp /> : typeId === 'patch_generic' ? <GenericPatchApp /> : typeId.startsWith('patch_') ? <PatchApp typeId={typeId} /> : <App typeId={typeId} />}
   </StrictMode>,
 );

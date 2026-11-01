@@ -589,6 +589,17 @@ in het venster.
   vaste patch-plugins (Poly 8, CS-80) krijgen de nieuwe motor bij hun
   volgende build.
 
+### MMB CR-78 Kit (2026-11-01)
+
+De twaalf CR-78-klanken als drumkit op General-MIDI-noten
+(`Cr78KitPlugin.cpp`, code `Ck78`): een gastheer in HostProcessor, zoals de
+patch-plugins, met de kern uit `mmb_dsp/cr78.h` op 44,1 kHz. Noten komen
+sample-precies binnen (`midiRaw`), een slag knipt het blok op die plek. De
+bediening is een lijst schuiven per klank (`KitApp` in plugin-ui). Voor
+Logic de natuurlijke weg: Drummer en de Step Sequencer sturen noten, dus
+tempo en transport komen vanzelf mee. De ritmebox (RHYTHM) zelf volgt
+Logic nog niet.
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde

@@ -145,6 +145,8 @@ if(NOT MMB_ONLY_PATCH)
   # Handgeschreven (eigen MIDI- of kernvertaling):
   mmb_add_module(MmbHall Hall "MMB HALL" FALSE src/HallPlugin.cpp CATEGORIES Fx Reverb)
   mmb_add_module(MmbSid  Sid1 "MMB SID"  TRUE  src/SidPlugin.cpp  CATEGORIES Instrument Synth)
+  # De twaalf CR-78-klanken als drumkit op General-MIDI-noten (Logic: Drummer, Step Sequencer).
+  mmb_add_module(MmbCr78Kit Ck78 "MMB CR-78 Kit" TRUE src/Cr78KitPlugin.cpp CATEGORIES Instrument Drum)
   # Gegenereerd: één regel per module (uniforme kern of wasm-gastheer).
   include(${MMB_GENERATED_DIR}/modules.cmake OPTIONAL)
   # Patch-plugins (editor/scripts/pluginPatches.ts): een hele patch, front als parameters.

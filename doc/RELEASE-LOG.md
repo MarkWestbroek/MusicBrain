@@ -118,6 +118,19 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB CR-78 Kit: de CR-78 op drumnoten
+<!-- EN: MMB CR-78 Kit: the twelve CR-78 voices as a drum kit on General MIDI notes -->
+- Nieuwe AU/VST3 "MMB CR-78 Kit" (`tools/plugin/src/Cr78KitPlugin.cpp`): de
+  twaalf klanken van de CR-78 (zelfde kern als de module) elk op hun
+  General-MIDI-noot: 36 Kick, 38 Snare, 37 Rim, 42/46 HiHat, 49 Cymbal,
+  56 Cowbell, 60/61 Bongo, 62–64 Conga, 54 Tamb, 70 Maracas, 73 Guiro,
+  75 Claves. Zo speelt Logic hem met Drummer, de Step Sequencer of een
+  regio, op het tempo en transport van Logic (Mark: "CR78 in MIDI note
+  mode").
+- Aanslag is accent; per klank Tone, Decay, Bend, Level en Pan, plus Master.
+- Gemeten: elke slag begint precies 64 samples na zijn noot (de gemelde
+  vertraging van de omzetting); auval geslaagd.
+
 ### 2026-11-01 — MMB Patch: DX7-banken, PADS-knoppen, namen uit de patch
 <!-- EN: MMB Patch: DX7 factory banks, PADS buttons as parameters, names from the patch -->
 - DX7 in een patch: Bank en Program deden niets, want niemand gaf hem zijn
