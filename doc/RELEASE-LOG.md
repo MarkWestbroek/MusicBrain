@@ -17,6 +17,23 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-11-01 — fw 0.5.120: Rings krijgt een Mix-uitgang
+<!-- EN: fw 0.5.120: Rings gets a Mix output -->
+- Bij Poly 2 of 4 valt elke noot op óf ODD (`out_l`) óf EVEN (`out_r`), om
+  en om; de eerste noot op EVEN. Een seed die alleen `out_l` in een
+  mono-effect stak, liet zo elke tweede noot weg, en een losse noot was stil
+  ("🔔 Rings + FREQ SHIFT", "💍 Rings + Ring mod"; gevonden door VST in de
+  plugin).
+- Nieuw: `out` is nu de som van odd en even. Dat is wat ODD op de hardware
+  geeft zolang er in EVEN geen kabel zit. Tot nu was `out` een alias van
+  `out_l`. Op het paneel staat hij als **Mix** naast Fine. De twee
+  mono-seeds gebruiken `out`; `out_l`/`out_r` blijven de stereo-splitsing.
+  Het recept (Ctrl+K) neemt in een stemketen de mix in plaats van L, en
+  zonder keten nog steeds L/R op twee mixerkanalen.
+- Gemeten in wasm, één noot: Poly 2 geeft `out_l` 0,000, `out_r` 0,570 en
+  `out` 0,570; Poly 1 geeft 0,390, 0,343 en 0,647.
+- Nog niet geflasht (Teensy is weg).
+
 ### 2026-10-30 — fw 0.5.119: 64 samplebanken (was 16)
 <!-- EN: fw 0.5.119: 64 sample banks (was 16) -->
 - De Bank-knop van SAMPLER, TAPE STRIP en PERCUTER loopt van 00 tot 63:

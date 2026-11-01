@@ -121,7 +121,7 @@ function allSeededProject(): ModularProject {
   p = seedSoloVoicePatch(p, 'tp_mmb_stk_sound', 'STK', 'out', 'out', {}, FOLDER_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_string', 'String', 'out', 'out', {}, DRIVE_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_string', 'String', 'out', 'out', {}, TUBE_SOLO_FX);
-  p = seedSoloVoicePatch(p, 'tp_mmb_rings', 'Rings', 'out_l', 'out_r', {}, FREQSHIFT_SOLO_FX);
+  p = seedSoloVoicePatch(p, 'tp_mmb_rings', 'Rings', 'out', 'out', {}, FREQSHIFT_SOLO_FX);
   p = seedComplexVoicePatch(p);
   p = seedSemSweepPatch(p);
   p = seedEPianoPolyPatch(p);

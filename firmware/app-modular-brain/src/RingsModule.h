@@ -30,6 +30,11 @@
  * | in  | `position`   | Cv    | (ook `position_cv`)                        |
  * | out | `out_l`      | Audio | Odd-uitgang (even/odd stem-split)          |
  * | out | `out_r`      | Audio | Even-uitgang                               |
+ * | out | `out`        | Audio | Mix van odd + even (één kabel, fw 0.5.120) |
+ *
+ * `out` is wat de hardware op ODD geeft zolang er in EVEN geen kabel zit:
+ * beide samen. Bij 2 of 4 stemmen valt elke noot óf op odd óf op even,
+ * dus alleen `out_l` aan een mono-effect liet elke tweede noot weg.
  *
  * Controls: `structure` `brightness` `damping` `position` (0..1),
  * `model` (0..5: modal, sympathetic, string, fm, quantized, string+verb),
@@ -116,9 +121,11 @@ public:
 
         audio_block_t* outL = allocate();
         audio_block_t* outR = allocate();
-        if (!outL || !outR) {
+        audio_block_t* outM = allocate();
+        if (!outL || !outR || !outM) {
             if (outL) release(outL);
             if (outR) release(outR);
+            if (outM) release(outM);
             return;
         }
 
@@ -139,6 +146,9 @@ public:
             if (aL > peak_) peak_ = aL;
             yL *= level_;
             yR *= level_;
+            float yM = yL + yR;
+            if (yM > 1.0f) yM = 1.0f; else if (yM < -1.0f) yM = -1.0f;
+            outM->data[i] = static_cast<int16_t>(yM * 32767.0f);
             if (yL > 1.0f) yL = 1.0f; else if (yL < -1.0f) yL = -1.0f;
             if (yR > 1.0f) yR = 1.0f; else if (yR < -1.0f) yR = -1.0f;
             outL->data[i] = static_cast<int16_t>(yL * 32767.0f);
@@ -147,8 +157,10 @@ public:
 
         transmit(outL, 0);
         transmit(outR, 1);
+        transmit(outM, 2);
         release(outL);
         release(outR);
+        release(outM);
     }
 
     void setLevel(float l) { level_ = l; }
@@ -222,8 +234,10 @@ public:
     RingsVoice& voice() { return voice_; }
 
     AudioPort outputPort(std::string_view portId) const override {
-        if (portId == "out" || portId == "out_l")
+        if (portId == "out_l")
             return { const_cast<RingsVoice*>(&voice_), 0, true };
+        if (portId == "out")
+            return { const_cast<RingsVoice*>(&voice_), 2, true };
         if (portId == "out_r")
             return { const_cast<RingsVoice*>(&voice_), 1, true };
         return {};

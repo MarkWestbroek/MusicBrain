@@ -2908,12 +2908,15 @@ function mmbRings() {
       inPort ('gate',  'Strum', 'gate',  col(1), 108),
       outPort('out_l', 'Odd',   'audio', col(2), 108),
       outPort('out_r', 'Even',  'audio', col(3), 108),
+      // Mix = odd + even, wat ODD op de hardware geeft zonder kabel in EVEN:
+      // één kabel naar een mono-effect hoort zo elke noot (fw 0.5.120).
+      outPort('out',   'Mix',   'audio', col(2), 88),
       inPort ('structure_cv',  'S+', 'cv', col(0), 120),
       inPort ('brightness_cv', 'B+', 'cv', col(1), 120),
       inPort ('damping_cv',    'D+', 'cv', col(2), 120),
       inPort ('position_cv',   'P+', 'cv', col(3), 120),
     ],
-    notes: 'Mutable Instruments Rings resonator (firmware tp_mmb_rings, FW-AU-11). Elke stijgende flank op Strum plukt de resonator op de huidige V/Oct-toonhoogte; Poly 2/4 laat strums over stemmen roteren (odd op L, even op R). Modellen: modal (klokken/marimba), sympathetic strings, string (Karplus-achtig), plus de FM/quantized/string+reverb bonus-modellen. Structure = inharmoniciteit/snaarkoppeling, Position = excitatiepunt.',
+    notes: 'Mutable Instruments Rings resonator (firmware tp_mmb_rings, FW-AU-11). Elke stijgende flank op Strum plukt de resonator op de huidige V/Oct-toonhoogte; Poly 2/4 laat strums over stemmen roteren (odd op L, even op R; Mix = beide samen). Modellen: modal (klokken/marimba), sympathetic strings, string (Karplus-achtig), plus de FM/quantized/string+reverb bonus-modellen. Structure = inharmoniciteit/snaarkoppeling, Position = excitatiepunt.',
   });
 }
 

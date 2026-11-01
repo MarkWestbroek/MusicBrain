@@ -19,8 +19,9 @@ MmbPort MMB_INPUTS[] = {
     { "in", MMB_AUDIO, 0, {} },
 };
 const int MMB_NUM_INPUTS = 7;
-MmbPort MMB_OUTPUTS[] = { { "out_l", MMB_AUDIO, 0, {} }, { "out_r", MMB_AUDIO, 0, {} } };
-const int MMB_NUM_OUTPUTS = 2;
+// out = odd + even: wat ODD op de hardware geeft zonder kabel in EVEN (fw 0.5.120).
+MmbPort MMB_OUTPUTS[] = { { "out_l", MMB_AUDIO, 0, {} }, { "out_r", MMB_AUDIO, 0, {} }, { "out", MMB_AUDIO, 0, {} } };
+const int MMB_NUM_OUTPUTS = 3;
 
 enum { C_STRUCTURE, C_BRIGHTNESS, C_DAMPING, C_POSITION, C_MODEL, C_POLYPHONY, C_COARSE, C_FINE, C_LEVEL };
 MmbControl MMB_CONTROLS[] = {
@@ -94,10 +95,12 @@ void mmb_process(int frames) {
     float out[rings::kMaxBlockSize], aux[rings::kMaxBlockSize];
     g_part.Process(g_ps, g_patch, in, out, aux, static_cast<size_t>(frames));
     for (int k = 0; k < frames; ++k) {
-        float l = out[k] * g_level, r = aux[k] * g_level;
+        float l = out[k] * g_level, r = aux[k] * g_level, m = l + r;
+        if (m > 1.f) m = 1.f; else if (m < -1.f) m = -1.f;
         if (l > 1.f) l = 1.f; else if (l < -1.f) l = -1.f;
         if (r > 1.f) r = 1.f; else if (r < -1.f) r = -1.f;
         MMB_OUTPUTS[0].buf[k] = l;
         MMB_OUTPUTS[1].buf[k] = r;
+        MMB_OUTPUTS[2].buf[k] = m;
     }
 }

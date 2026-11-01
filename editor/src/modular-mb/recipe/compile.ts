@@ -171,10 +171,12 @@ export function compileRecipe(project: ModularProject, recipe: PatchRecipe): Com
     vibrato = false;
   }
   const hasVca = ampEnv || velocity;
-  const srcStereo = !src.roles.audioOut.mono && isStereoOut(src.roles);
+  // Een bron met L/R én een mono-mix (Rings: out = odd + even) gaat zonder
+  // keten stereo de mixer in, en in een keten met de mix in plaats van L.
+  const srcStereo = isStereoOut(src.roles);
   const chainEmpty = !flt && vfx.length === 0 && !hasVca;
   const stereoDirect = srcStereo && chainEmpty && N === 1;   // L/R op twee mixerkanalen
-  if (srcStereo && !stereoDirect) {
+  if (srcStereo && !stereoDirect && !src.roles.audioOut.mono) {
     warnings.push(`${shortName(src.typeId, types)} is stereo; in een stemketen wordt alleen de L-uitgang gebruikt.`);
   }
 
