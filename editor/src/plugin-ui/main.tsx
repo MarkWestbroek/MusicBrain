@@ -381,6 +381,7 @@ function PatchView({ built, slots, topPx }: { built: PatchViewData; slots: boole
             if (p) change(p, v);
             const c = fm.type.controls.find((x) => x.id === vid);
             if (c) showReadout('label' in c && c.label ? c.label : vid, formatValue(c, v));
+            else if (p) showReadout(p.label, formatValue(p.control, v));   // keuze uit een display (ADR 0017)
           }}
         />
       </div>
