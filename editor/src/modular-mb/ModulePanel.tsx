@@ -297,6 +297,10 @@ function SamplerBankStrip({ cx, y, w, bank, max, onPick }: {
     else if (hb.knob === nn && hb.name && hb.loading) { text = `${String(nn).padStart(2, '0')} · ${hb.name} — laden…`; tone = 'dim'; }
     else if (hb.knob === nn && hb.name) { text = `${String(nn).padStart(2, '0')} · ${hb.name}`; tone = hb.note ? 'warn' : 'ok'; }
     else { text = `${String(nn).padStart(2, '0')} · laden…`; tone = 'dim'; }
+  } else if (hostBankList()) {
+    // MMB Patch: geen bank per plugin maar per module; de namen uit de bankmap van de plugin.
+    const name = hostBankList()!.find((b) => b.n === nn)?.name;
+    text = `${String(nn).padStart(2, '0')} · ${name ?? '(leeg)'}`; tone = name ? 'ok' : 'dim';
   }
   // Zonder Teensy: de serverbank die de simulator voor dit nummer laadt.
   let fromSim = false;
@@ -310,7 +314,7 @@ function SamplerBankStrip({ cx, y, w, bank, max, onPick }: {
   const col = loading ? '#64748b' : fromSim ? '#a5b4fc' : tone === 'ok' ? '#67e8f9' : tone === 'warn' ? '#fbbf24' : '#64748b';
   // Naam per nummer voor de lijst: van de SD-kaart als de Teensy er is, anders de serverbank.
   // In een plugin: de bankmap van de plugin zelf.
-  const hostList = hb ? hostBankList() : null;
+  const hostList = hostBankList();
   const nameOf = (k: number): string | null =>
     hostList ? (hostList.find((b) => b.n === k)?.name ?? null)
       : st && st.sdOk !== undefined ? (st.sdBankNames?.[k] || null) : simBankName(k);

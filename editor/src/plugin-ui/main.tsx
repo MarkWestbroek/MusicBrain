@@ -467,6 +467,8 @@ function GenericPatchApp() {
     } catch (e) { setMsg({ text: `patch onleesbaar: ${String(e)}`, warn: true }); }
   };
   useEffect(() => { void patchGet().then(adopt); return watchPatch(adopt); }, [base]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // Banknamen voor de sampler-, Mellotron- en Percuter-strookjes: uit de bankmap van de plugin.
+  useEffect(() => { void bankList().then(setHostBankList); }, []);
 
   const load = async (project: ModularProject, name: string) => {
     const patch = activePatch(project);

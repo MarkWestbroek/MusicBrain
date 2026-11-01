@@ -118,6 +118,15 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB Patch: banknamen op het paneel
+<!-- EN: MMB Patch: bank names on the sampler/Mellotron/Percuter strips -->
+- Het bankstrookje van sampler, Mellotron (TAPE STRIP) en Percuter toont in
+  MMB Patch de naam uit de bankmap van de plugin, ook in de kieslijst; eerst
+  stond er alleen "bank 07" en overal "(leeg)", terwijl de bank wel klonk
+  (Mark).
+- Bankmap op de Mac bijgewerkt naar de nummering sinds 30-10: 7 de fluit,
+  20 de shakuhachi (de kopie van index.json was van vóór de wissel).
+
 ### 2026-11-01 — MMB Patch: de catalogus in het presetmenu van de DAW
 <!-- EN: MMB Patch: the patch catalogue as DAW programs (preset menu), playable without opening the window -->
 - De 113 patches uit Basisset, Poly en Solo staan als programma's in het
