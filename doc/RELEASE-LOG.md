@@ -118,6 +118,19 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB Patch: de ritmebox volgt Logic
+<!-- EN: MMB Patch: the rhythm box follows the DAW transport (tempo, start/stop, bar line) -->
+- Speelt Logic, dan loopt een ritmebox (RHYTHM, de CR-78-presets) in MMB
+  Patch mee: hij zwijgt tot de eerstvolgende maatstreep en loopt dan op de
+  tellen van Logic (externe klok, een puls per tel), dus ook tempowissels.
+  Stopt Logic, dan stopt hij; na een sprong (cycle, verplaatsen) begint hij
+  weer op de maatstreep. Speelt Logic niet, dan loopt hij vrij op zijn
+  Tempo, zoals eerst (Mark: "zou die moeten starten met dat Logic speelt?").
+- `PatchEngine::transport`, gevoed door HostProcessor uit de playhead van
+  de DAW; `MmbPluginCheck ... transport=<bpm>[:<kwart>[:<start s>]]`.
+- Gemeten op 100 bpm: start op de maatstreep speelt meteen door; start op
+  tel 2 zwijgt tot de volgende maat.
+
 ### 2026-11-01 — MMB CR-78 Kit: de CR-78 op drumnoten
 <!-- EN: MMB CR-78 Kit: the twelve CR-78 voices as a drum kit on General MIDI notes -->
 - Nieuwe AU/VST3 "MMB CR-78 Kit" (`tools/plugin/src/Cr78KitPlugin.cpp`): de

@@ -84,6 +84,10 @@ public:
 
     /** MIDI op @p nativeOffset samples na het eerstvolgende blok van de motor. */
     void midiRaw(const juce::MidiMessage& m, double nativeOffset) { if (engine_.loaded()) engine_.midi(m, engine_.now() + nativeOffset); }
+    /** Transport van de DAW (HostProcessor): de ritmebox loopt mee. */
+    void transport(bool playing, double bpm, double ppq, double bar, double nativeOffset, double span) {
+        if (engine_.loaded()) engine_.transport(playing, bpm, ppq, bar, engine_.now() + nativeOffset, span);
+    }
 
 private:
     PatchEngine engine_;

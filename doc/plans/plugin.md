@@ -597,8 +597,9 @@ patch-plugins, met de kern uit `mmb_dsp/cr78.h` op 44,1 kHz. Noten komen
 sample-precies binnen (`midiRaw`), een slag knipt het blok op die plek. De
 bediening is een lijst schuiven per klank (`KitApp` in plugin-ui). Voor
 Logic de natuurlijke weg: Drummer en de Step Sequencer sturen noten, dus
-tempo en transport komen vanzelf mee. De ritmebox (RHYTHM) zelf volgt
-Logic nog niet.
+tempo en transport komen vanzelf mee. De ritmebox (RHYTHM) in MMB Patch
+volgt Logic ook: `PatchEngine::transport` geeft hem bij de eerste
+maatstreep Run op de externe klok en een puls per tel.
 
 ## 3. Wat het kostte en wat het zou kosten
 

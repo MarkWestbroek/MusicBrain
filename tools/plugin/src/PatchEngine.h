@@ -30,6 +30,14 @@
 // HostProcessor dat voor een losse plugin doet ("Resampled"). Dat kost hem
 // een paar blokken vertraging; zijn CV-poorten gaan gewoon via de bridge.
 //
+// Transport van de DAW (transport()): een ritmebox (tp_mmb_rhythm) loopt mee
+// zodra de DAW speelt. Bij de eerstvolgende maatstreep: Run aan op de externe
+// klok (ExtClock), daarna een puls op elke tel op `clock`; de box verdeelt de
+// stappen zelf over de tel; tot die maatstreep zwijgt hij. Stopt de DAW,
+// dan stopt de box; springt de
+// positie (cycle, verplaatsen), dan begint hij weer bij de volgende
+// maatstreep. Speelt de DAW niet, dan loopt de box vrij op zijn Tempo.
+//
 // Bypass (plugin-patches.md §9): de pseudo-knop `__bypass` in controlState.
 // Welke modules en hoe staat per type in "bypass" naast "project" in de JSON
 // (de generator haalt het uit bypassRoute.ts): { "own": true } = de module
@@ -113,6 +121,7 @@ public:
                     else { error = juce::String(type) + ": " + juce::String(rate) + " Hz, blok " + juce::String(block) + " kan nog niet in een patch"; return false; }
                     node->block = block;
                     if (node->host->hasMidi()) midiNodes_.push_back(node.get());
+                    if (type == "tp_mmb_rhythm") rhythmNodes_.push_back(node.get());
                     // Banken (sampler, TAPE STRIP, ZANG) laadt de motor nog niet: zo'n module blijft stil.
                     if ((node->host->hasBank() || type == "tp_mmb_zang") &&
                         std::find(needsBank_.begin(), needsBank_.end(), type) == needsBank_.end()) {
@@ -199,7 +208,50 @@ public:
     double now() const { return clock_; }
 
     /** Eén blok van kBlock samples; @p l en @p r krijgen de uitgang. */
+    /**
+     * Transport van de DAW voor het volgende stuk van @p span motorsamples,
+     * dat begint op motorsample @p at: speelt hij, tempo, positie in kwartnoten
+     * en de maatlengte in kwartnoten.
+     */
+    void transport(bool playing, double bpm, double ppq, double barQuarters, double at, double span) {
+        if (rhythmNodes_.empty()) return;
+        if (!playing || bpm <= 0.0) {
+            if (syncPlaying_) syncEvents_.push_back({ at, SyncStop });
+            syncPlaying_ = false;
+            return;
+        }
+        const double qPerSample = bpm / 60.0 / kRate;
+        // Begin, of een sprong (cycle, verplaatsen): wachten op de volgende maatstreep.
+        if (!syncPlaying_ || std::abs(ppq - syncNextPpq_) > 0.01) {
+            syncPlaying_ = true; syncArmed_ = true;
+            syncEvents_.push_back({ at, SyncStop });   // stil tot de maatstreep, niet vrij doorlopen
+        }
+        syncNextPpq_ = ppq + span * qPerSample;
+        if (bpm != syncBpm_) { syncBpm_ = bpm; for (Node* n : rhythmNodes_) setControl(*n, "tempo", static_cast<float>(bpm)); }
+        const double bar = barQuarters > 0.0 ? barQuarters : 4.0;
+        // Net na een maatstreep begonnen (binnen 1/20 kwart): dat is op de maatstreep.
+        if (syncArmed_ && std::fmod(ppq, bar) < 0.05) {
+            syncEvents_.push_back({ at, SyncStart });
+            syncEvents_.push_back({ at, SyncBeat });
+            syncEvents_.push_back({ at + 0.005 * kRate, SyncBeatOff });
+            syncArmed_ = false;
+        }
+        for (double q = std::ceil(ppq - 1.0e-9); q < syncNextPpq_; q += 1.0) {
+            if (q < ppq + 1.0e-9 && !syncEvents_.empty() && syncEvents_.back().what == SyncBeatOff && syncEvents_.back().at > at) continue;   // die tel is al gegeven
+            const double t = at + (q - ppq) / qPerSample;
+            const double inBar = std::fmod(q, bar);
+            if (syncArmed_) {
+                if (inBar > 1.0e-6 && bar - inBar > 1.0e-6) continue;
+                syncEvents_.push_back({ t, SyncStart });
+                syncArmed_ = false;
+            }
+            syncEvents_.push_back({ t, SyncBeat });
+            syncEvents_.push_back({ t + 0.005 * kRate, SyncBeatOff });   // puls van 5 ms
+        }
+    }
+
     void process(float* l, float* r) {
+        applySync();
         // CV-tikken die in dit blok vallen, eerst.
         while (nextTick_ < clock_ + kBlock) {
             deliverMidi(nextTick_);
@@ -328,6 +380,32 @@ private:
             for (auto& c : audio_) if (c.src == n && c.dst != n && --indeg[c.dst] == 0) ready.push_back(c.dst);
         }
         for (Node* n : audio) if (std::find(audioOrder_.begin(), audioOrder_.end(), n) == audioOrder_.end()) audioOrder_.push_back(n);
+    }
+
+    enum SyncWhat { SyncStart, SyncBeat, SyncBeatOff, SyncStop };
+    struct SyncEvent { double at; SyncWhat what; };
+
+    /** Transportgebeurtenissen die in dit blok vallen (op blokgrens: ≤ 0,7 ms). */
+    void applySync() {
+        if (syncEvents_.empty()) return;
+        std::size_t k = 0;
+        for (; k < syncEvents_.size() && syncEvents_[k].at < clock_ + kBlock; ++k)
+            for (Node* n : rhythmNodes_) {
+                switch (syncEvents_[k].what) {
+                    case SyncStart: setControl(*n, "extclock", 1.0f); setControl(*n, "run", 1.0f); break;
+                    case SyncStop:  setControl(*n, "run", 0.0f); setControl(*n, "extclock", 0.0f); break;
+                    case SyncBeat:
+                    case SyncBeatOff: {
+                        const int in = n->host->inputIndex("clock");
+                        if (in < 0) break;
+                        float* buf = n->host->inBuf(in);
+                        std::fill(buf, buf + n->block, syncEvents_[k].what == SyncBeat ? 1.0f : 0.0f);
+                        n->host->setConnected(in, 1);
+                        break;
+                    }
+                }
+            }
+        if (k > 0) syncEvents_.erase(syncEvents_.begin(), syncEvents_.begin() + static_cast<long>(k));
     }
 
     void deliverMidi(double upTo) {
@@ -490,7 +568,10 @@ private:
 
     std::vector<std::unique_ptr<Node>> nodes_;
     std::unordered_map<std::string, Node*> byId_;
-    std::vector<Node*> cvNodes_, audioOrder_, midiNodes_;
+    std::vector<Node*> cvNodes_, audioOrder_, midiNodes_, rhythmNodes_;
+    std::vector<SyncEvent> syncEvents_;
+    bool syncPlaying_ = false, syncArmed_ = false;
+    double syncNextPpq_ = 0.0, syncBpm_ = 0.0;
     std::vector<AudioCable> audio_;
     std::vector<CvCable> cv_;
     std::vector<MidiEvent> pending_;

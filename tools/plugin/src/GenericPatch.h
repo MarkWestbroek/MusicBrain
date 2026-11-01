@@ -122,6 +122,10 @@ public:
     }
     const char* typeId() const { return "patch_generic"; }
     void midiRaw(const juce::MidiMessage& m, double nativeOffset) { if (engine_) engine_->midi(m, engine_->now() + nativeOffset); }
+    /** Transport van de DAW (HostProcessor): de ritmebox loopt mee. */
+    void transport(bool playing, double bpm, double ppq, double bar, double nativeOffset, double span) {
+        if (engine_) engine_->transport(playing, bpm, ppq, bar, engine_->now() + nativeOffset, span);
+    }
 
     /** Andere motor en slots (onder de callback-lock). De oude komen terug in de argumenten. */
     void swap(std::unique_ptr<PatchEngine>& engine, std::vector<PatchSlot>& slots) {

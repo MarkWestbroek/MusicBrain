@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("sc=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") || arg.startsWith("savestate=") || arg.startsWith("loadstate=") || arg.startsWith("patchstate=") ||
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("sc=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") || arg.startsWith("savestate=") || arg.startsWith("loadstate=") || arg.startsWith("patchstate=") || arg.startsWith("transport=") ||
             arg.startsWith("press=") || arg.startsWith("cc=") || arg.startsWith("at=") || arg.startsWith("seq=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
@@ -359,7 +359,33 @@ int main(int argc, char** argv) {
         }
         notes.clear();
     }
+    // transport=<bpm>[:<begin in kwartnoten>[:<seconden tot start>]]: een spelende DAW (de ritmebox volgt hem).
+    struct CheckPlayHead : juce::AudioPlayHead {
+        double bpm = 120.0, ppq = 0.0, startAt = 0.0, now = 0.0, rate = 44100.0;
+        juce::Optional<PositionInfo> getPosition() const override {
+            PositionInfo p;
+            const bool playing = now >= startAt;
+            p.setIsPlaying(playing);
+            p.setBpm(bpm);
+            p.setTimeSignature(TimeSignature { 4, 4 });
+            p.setPpqPosition(ppq + (playing ? (now - startAt) * bpm / 60.0 : 0.0));
+            return p;
+        }
+    } playHead;
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("transport=")) continue;
+        juce::StringArray t;
+        t.addTokens(arg.fromFirstOccurrenceOf("=", false, false), ":", "");
+        playHead.bpm = t[0].getDoubleValue();
+        if (t.size() > 1) playHead.ppq = t[1].getDoubleValue();
+        if (t.size() > 2) playHead.startAt = t[2].getDoubleValue();
+        playHead.rate = useRate;
+        plugin->setPlayHead(&playHead);
+        std::printf("transport: %.1f bpm vanaf kwart %.2f, start na %.2f s\n", playHead.bpm, playHead.ppq, playHead.startAt);
+    }
     for (int pos = 0; pos < total; pos += block) {
+        playHead.now = pos / useRate;
         buf.clear();
         midi.clear();
         const int n = juce::jmin(block, total - pos);

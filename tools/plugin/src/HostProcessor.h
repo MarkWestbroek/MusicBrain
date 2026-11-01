@@ -35,6 +35,8 @@
 #include "mmb_dsp/sample_bank.h"
 
 #include <atomic>
+#include <type_traits>
+#include <utility>
 #include <string>
 #include <vector>
 
@@ -95,6 +97,10 @@ struct AbiPorts {
         return out;
     }
 };
+
+/** Heeft een Host transport(...)? (de patch-gastheren: de ritmebox volgt de DAW). */
+template <class H, class = void> struct HasTransport : std::false_type {};
+template <class H> struct HasTransport<H, std::void_t<decltype(std::declval<H&>().transport(true, 0.0, 0.0, 0.0, 0.0, 0.0))>> : std::true_type {};
 
 template <class Host>
 class HostProcessor : public MmbProcessor {
@@ -182,6 +188,15 @@ public:
             // na wat er nog in de fifo staat, plus de offset in dit blok.
             const double queued = static_cast<double>(inFifo_[0].size());
             for (const auto meta : midi) host_.midiRaw(meta.getMessage(), queued + meta.samplePosition * ratio_);
+            if constexpr (HasTransport<Host>::value) {
+                if (auto* ph = getPlayHead())
+                    if (const auto pos = ph->getPosition()) {
+                        const auto sig = pos->getTimeSignature().orFallback(juce::AudioPlayHead::TimeSignature {});
+                        const double bar = sig.denominator > 0 ? 4.0 * sig.numerator / sig.denominator : 4.0;
+                        host_.transport(pos->getIsPlaying(), pos->getBpm().orFallback(120.0), pos->getPpqPosition().orFallback(0.0),
+                                        bar, queued, frames * ratio_);
+                    }
+            }
         } else {
             for (const auto meta : midi) notes_.handle(meta.getMessage());
         }
