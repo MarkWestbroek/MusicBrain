@@ -51,6 +51,7 @@ struct AbiPorts {
     std::vector<int> audioIn, audioOut, cvIn;      // cvIn: CV/gate-poorten die parameters worden
     std::vector<int> sideIn;                       // audio-ingang `sc` (sidechain, PUMP, Bus comp): niet de hoofdingang
     int monoVoct = -1, monoGate = -1, monoVel = -1;
+    int outMix = -1;                               // `out` naast out_l/out_r (RINGS): parameter Uitgang, Stereo of Mix
     std::vector<int> cellVoct, cellGate, cellVel;  // poly: index per cel (−1 = geen)
     bool notes = false;
 
@@ -61,6 +62,11 @@ struct AbiPorts {
         for (int i = 0; i < h.numInputs(); ++i)
             if (h.inputKind(i) == kPortAudio) (is(h.inputId(i), "sc") ? p.sideIn : p.audioIn).push_back(i);
         for (int i = 0; i < h.numOutputs(); ++i) if (h.outputKind(i) == kPortAudio) p.audioOut.push_back(i);
+        {
+            int l = -1, r = -1, m = -1;
+            for (int i : p.audioOut) { if (is(h.outputId(i), "out_l")) l = i; else if (is(h.outputId(i), "out_r")) r = i; else if (is(h.outputId(i), "out")) m = i; }
+            if (l >= 0 && r >= 0 && m >= 0) { p.audioOut = { l, r }; p.outMix = m; }
+        }
         std::vector<int> used;
         if (synth) {
             // Poly-cellen voct_1..N; anders mono voct/gate/vel.
@@ -89,6 +95,7 @@ struct AbiPorts {
     template <class Host>
     std::vector<ParamSpec> extraParams(Host& h) const {
         std::vector<ParamSpec> out;
+        if (outMix >= 0) out.push_back(ParamSpec { "outmode", "Uitgang", ParamKind::Choice, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, "Stereo|Mix", "" });
         for (int i : cvIn) {
             const bool gate = h.inputKind(i) == kPortGate;
             const std::string id = h.inputId(i);
@@ -150,6 +157,7 @@ public:
     }
 
     void applyCv(const char* port, float v) override {
+        if (ports_.outMix >= 0 && std::strcmp(port, "outmode") == 0) { mix_ = v >= 0.5f; return; }   // extra parameter, geen poort
         for (int i : ports_.cvIn) if (is(host_.inputId(i), port)) { cvValue_[static_cast<std::size_t>(i)] = v; return; }
     }
 
@@ -238,7 +246,7 @@ public:
             writeNotes();
             const bool ok = host_.process(block_);
             for (int ch = 0; ch < 2; ++ch) {
-                const int o = ports_.audioOut.empty() ? -1 : ports_.audioOut[static_cast<std::size_t>(ch < static_cast<int>(ports_.audioOut.size()) ? ch : 0)];
+                const int o = mix_ ? ports_.outMix : ports_.audioOut.empty() ? -1 : ports_.audioOut[static_cast<std::size_t>(ch < static_cast<int>(ports_.audioOut.size()) ? ch : 0)];
                 auto& fifo = outFifo_[static_cast<std::size_t>(ch)];
                 if (o < 0 || !ok) fifo.insert(fifo.end(), B, 0.0f);
                 else { const float* src = host_.outBuf(o); fifo.insert(fifo.end(), src, src + B); }
@@ -306,6 +314,7 @@ private:
     std::vector<std::vector<float>> inFifo_, outFifo_;
     juce::LagrangeInterpolator inInterp_[3], outInterp_[2];
     bool sideLive_ = false;   // er kwam iets op de sidechain-bus binnen
+    bool mix_ = false;        // Uitgang = Mix (outmode)
     juce::AudioBuffer<float> scratch_;
 };
 

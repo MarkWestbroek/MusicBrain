@@ -98,6 +98,7 @@ public:
     float* inBuf(int) { return nullptr; }
     void setConnected(int, int) {}
     int numOutputs() const { return 2; }
+    const char* outputId(int i) const { return i == 0 ? "out_l" : "out_r"; }
     int outputKind(int) const { return kPortAudio; }
     const float* outBuf(int i) const { return out_[i]; }
     bool hasBank() const { return false; }

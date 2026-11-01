@@ -35,6 +35,7 @@ struct NativeHost {
     float* inBuf(int i) { return MMB_INPUTS[i].buf; }
     void setConnected(int i, int c) { MMB_INPUTS[i].connected = c; }
     int numOutputs() const { return MMB_NUM_OUTPUTS; }
+    const char* outputId(int i) const { return MMB_OUTPUTS[i].id; }
     int outputKind(int i) const { return MMB_OUTPUTS[i].kind; }
     const float* outBuf(int i) const { return MMB_OUTPUTS[i].buf; }
     int controlIndex(const char* id) const { return mmb_control_index(id); }

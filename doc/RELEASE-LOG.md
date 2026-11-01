@@ -130,6 +130,15 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB RINGS: parameter Uitgang (Stereo of Mix)
+<!-- EN: MMB RINGS: output parameter, Stereo (odd/even) or Mix -->
+- De losse RINGS-plugin heeft een parameter **Uitgang**. Stereo (standaard,
+  zoals eerst): de oneven stemmen links, de even rechts, dus bij Poly 2 of
+  meer springen opeenvolgende noten om en om. Mix: beide samen in het
+  midden, de Mix-uitgang die MODULES in fw 0.5.120 maakte.
+- Algemeen in `HostProcessor.h`: elke module met `out_l`, `out_r` en `out`
+  krijgt deze keuze. Bestaande projecten klinken gelijk.
+
 ### 2026-11-01 — MMB Patch: DX7-editor en CMI-pagina's als tab
 <!-- EN: MMB Patch: the DX7 editor and the CMI pages as tabs; CMI patches play their own waveform -->
 - Een patch met een DX7 of CMI heeft in MMB Patch achter Expert een tab
