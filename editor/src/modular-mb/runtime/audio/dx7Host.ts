@@ -22,6 +22,7 @@ let romsPromise: Promise<Uint8Array> | null = null;
 let roms: Uint8Array | null = null;
 let editPatch: Uint8Array | null = null;
 let lastError: string | null = null;
+const hostListeners = new Set<(patch: Uint8Array) => void>();
 /** Waar de ROMs vandaan komen; in een plugin uit de plugin zelf (setDx7RomSource). */
 let romSource: (() => Promise<Uint8Array>) | null = null;
 export function setDx7RomSource(src: () => Promise<Uint8Array>): void { romSource = src; romsPromise = null; }
@@ -78,6 +79,17 @@ export const dx7Host = {
     WasmModule.broadcastControl(TYPE_ID, 'edit', editPatch ? 1 : 0);
   },
   getEditPatch(): Uint8Array | null { return editPatch; },
+
+  /** De stem komt van buiten (MMB DX7: de parameters van de plugin); de editor
+   *  volgt hem (onHostPatch). Gaat niet terug de wasm in: de plugin speelt hem al. */
+  setEditPatchFromHost(patch: Uint8Array): void {
+    editPatch = Uint8Array.from(patch.subarray(0, 156));
+    for (const fn of hostListeners) fn(editPatch);
+  },
+  onHostPatch(fn: (patch: Uint8Array) => void): () => void {
+    hostListeners.add(fn);
+    return () => { hostListeners.delete(fn); };
+  },
 
   /** Packed voice (128 bytes) uit een factory-ROM — startpunt voor de editor. */
   async getPackedVoice(bank: number, program: number): Promise<Uint8Array> {

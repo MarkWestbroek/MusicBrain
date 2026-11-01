@@ -23,6 +23,9 @@ import { PATCH_CATALOG } from '../src/modular-mb/patchCatalog';
 import { PATCH_PLUGINS, patchPluginTypeId, pluginPanelSize, pluginParams } from '../src/modular-mb/patchPlugins';
 import { PATCH_SLOTS, patchPluginConfig } from '../src/modular-mb/patchPluginConfig';
 import { seedInternals } from '../src/modular-mb/seedModules';
+import { DX7_BANK_SHORT } from '../src/modular-mb/dx7BankNames';
+import { patchName, unpackPatch } from '../src/modular-mb/dx7Patch';
+import { DX7_PLUGIN_PARAMS } from '../src/modular-mb/dx7PluginParams';
 import { emptyModularProject } from '../src/modular-mb/types';
 import { spec } from './pluginParams';
 
@@ -120,6 +123,7 @@ function main(): void {
     cmake.push(`mmb_add_module(${p.target} ${p.code} "${p.product}" TRUE \${MMB_GENERATED_DIR}/${slug}_patch_plugin.cpp CATEGORIES Instrument Synth W2CMODS ${w2c})`);
     console.log(`${p.label} → ${p.target}: ${config.project.modules.length} modules (${mods.length} soorten wasm), ${rows.length} parameters, JSON ${(json.length / 1024).toFixed(1)} KB`);
   }
+  cmake.push(writeDx7Plugin());
   fs.writeFileSync(path.join(outDir, 'patches.cmake'), cmake.join('\n') + '\n');
   writeDx7Roms();
   writeGeneric();
@@ -145,6 +149,92 @@ function writeDx7Roms(): void {
     '};',
     '',
   ].join('\n'));
+}
+
+/**
+ * MMB DX7 (tools/plugin/src/Dx7Plugin.h): de patch "DX7 poly ×8" met elke
+ * stemparameter als DAW-parameter (dx7PluginParams.ts) en de 256
+ * fabrieksklanken als programma's. Geeft de regel voor patches.cmake.
+ */
+function writeDx7Plugin(): string {
+  const label = '🎹 DX7 poly ×8';
+  const entry = PATCH_CATALOG.find((e) => e.label === label);
+  if (!entry) throw new Error(`geen seed "${label}" in patchCatalog.ts`);
+  const project = entry.build(seedInternals(emptyModularProject()));
+  const patch = project.patches.find((x) => x.id === project.activePatchId) ?? project.patches[project.patches.length - 1]!;
+  const json = patchPluginConfig(project, patch).json;
+  const config = JSON.parse(json) as { project: { modules: { typeId: string }[] } };
+  const mods = [...new Set(config.project.modules.map((m) => m.typeId))].filter((t) => !NATIVE.has(t)).sort();
+
+  const rom = fs.readFileSync(path.join(repo, 'editor', 'public', 'dx7', 'roms.bin'));
+  const voices: Uint8Array[] = [];
+  const names: string[] = [];
+  for (let b = 0; b < 8; ++b)
+    for (let v = 0; v < 32; ++v) {
+      const un = unpackPatch(new Uint8Array(rom.buffer, rom.byteOffset + b * 4096 + v * 128, 128), 0);
+      voices.push(un);
+      names.push(`${DX7_BANK_SHORT[b]} ${String(v + 1).padStart(2, '0')} ${patchName(un).trim()}`);
+    }
+  const v0 = voices[0]!;
+  const rows = DX7_PLUGIN_PARAMS.map((x) => {
+    const def = Math.min(x.max, v0[x.offset]!);
+    return x.steps
+      ? `    { ${cstr(x.id)}, ${cstr(x.name)}, ParamKind::Choice, 0.0f, ${x.max}.0f, ${def}.0f, 1.0f, 0.0f, ${cstr(x.steps.join('|'))}, "" },`
+      : `    { ${cstr(x.id)}, ${cstr(x.name)}, ParamKind::Float, ${x.bias}.0f, ${x.max + x.bias}.0f, ${def + x.bias}.0f, 1.0f, 0.0f, "", "" },`;
+  });
+  const bytes = [...Buffer.from(json, 'utf8')];
+  const jsonLines: string[] = [];
+  for (let i = 0; i < bytes.length; i += 32) jsonLines.push('    ' + bytes.slice(i, i + 32).join(',') + ',');
+  fs.writeFileSync(path.join(outDir, 'dx7_plugin.cpp'), [
+    `// Gegenereerd door editor/scripts/pluginPatches.ts (MMB DX7, seed "${label}"); niet met de hand wijzigen.`,
+    '#include "Dx7Plugin.h"',
+    ...mods.map((t) => `#include "${w2cName(t)}_vt.h"`),
+    '',
+    'namespace mmb_plugin {',
+    'static const unsigned char kJson[] = {',
+    ...jsonLines,
+    '    0 };',
+    'const char* patchJson() { return reinterpret_cast<const char*>(kJson); }',
+    'const W2cVtable* patchModule(const std::string& t) {',
+    ...mods.map((t) => `    if (t == ${cstr(t)}) return &kW2c_${w2cName(t)};`),
+    '    return nullptr;',
+    '}',
+    'static const char* const kIds[] = {',
+    ...DX7_PLUGIN_PARAMS.map((x) => `    ${cstr(x.id)},`),
+    '};',
+    'int patchParamIndex(const char* id) {',
+    '    for (int i = 0; i < static_cast<int>(sizeof(kIds) / sizeof(kIds[0])); ++i) if (std::strcmp(kIds[i], id) == 0) return i;',
+    '    return -1;',
+    '}',
+    'const std::vector<std::vector<std::pair<std::string, std::string>>>& patchParamTargets() {',
+    '    static const std::vector<std::vector<std::pair<std::string, std::string>>> t;',
+    '    return t;',
+    '}',
+    'static const Dx7ParamInfo kInfo[] = {',
+    ...DX7_PLUGIN_PARAMS.map((x) => `    { ${x.offset}, ${x.max}, ${x.bias} },`),
+    '};',
+    'const Dx7ParamInfo* dx7ParamInfo() { return kInfo; }',
+    `int dx7ParamCount() { return ${DX7_PLUGIN_PARAMS.length}; }`,
+    `static const uint8_t kVoices[${voices.length}][${v0.length}] = {`,
+    ...voices.map((v) => `    { ${[...v].join(',')} },`),
+    '};',
+    'const uint8_t* dx7FactoryVoice(int i) { return kVoices[i < 0 ? 0 : i > 255 ? 255 : i]; }',
+    'static const char* const kNames[] = {',
+    ...names.map((n) => `    ${cstr(n)},`),
+    '};',
+    'const char* dx7FactoryName(int i) { return kNames[i < 0 ? 0 : i > 255 ? 255 : i]; }',
+    'inline constexpr ParamSpec kParams[] = {',
+    ...rows,
+    '};',
+    `inline constexpr ModuleSpec kModule { "dx7_plugin", "DX7", 50, kParams, ${rows.length}, nullptr, 0, 250.0f, 150.0f };`,
+    '}  // namespace mmb_plugin',
+    '',
+    'juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new mmb_plugin::Dx7Processor(mmb_plugin::kModule, true); }',
+    '',
+  ].join('\n'));
+  const w2c = mods.map((t) => `${w2cName(t)} ${cstr(path.join(wasmPublic, `${t}.wasm`).split(path.sep).join('/'))}`).join(' ');
+  console.log(`MMB DX7: ${DX7_PLUGIN_PARAMS.length} parameters, ${voices.length} programma's, ${mods.length} soorten wasm`);
+  return `mmb_add_module(MmbDx7 Dx7p "MMB DX7" TRUE \${MMB_GENERATED_DIR}/dx7_plugin.cpp CATEGORIES Instrument Synth W2CMODS ${w2c})`;
 }
 
 /**

@@ -92,6 +92,12 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
     for (const { cc, val } of rotoFeedback(patch, rotoOp)) sendCc(DX7_ROTO_CHANNEL, cc, val);
   }, [open, patch, rotoOp]);
 
+  // MMB DX7: de plugin (automation, een programma, een control surface) zet de stem.
+  useEffect(() => {
+    if (!open) return;
+    return dx7Host.onHostPatch((p) => setPatch(Uint8Array.from(p)));
+  }, [open]);
+
   // Eerste opening: begin bij de patch die al klinkt, of bij ROM1A #1.
   useEffect(() => {
     if (!open || patch) return;

@@ -90,7 +90,7 @@ public:
         if (engine_.loaded()) engine_.transport(playing, bpm, ppq, bar, engine_.now() + nativeOffset, span);
     }
 
-private:
+protected:   // Dx7Plugin.h bouwt hierop voort
     PatchEngine engine_;
     std::vector<std::pair<int, float>> pending_;
     bool failed_ = false;

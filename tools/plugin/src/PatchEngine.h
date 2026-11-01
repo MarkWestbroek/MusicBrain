@@ -215,14 +215,18 @@ public:
      *  (@p isType). Niet tijdens process(): de aanroeper houdt de callback-lock of de
      *  motor speelt nog niet. Geeft het aantal modules dat hem kreeg. */
     int setBlob(const std::string& target, bool isType, int slot, const juce::MemoryBlock& data) {
+        return setBlob(target, isType, slot, data.getData(), data.getSize());
+    }
+    /** Zonder MemoryBlock: mag op de audiothread (MMB DX7 zet zo zijn stem). */
+    int setBlob(const std::string& target, bool isType, int slot, const void* data, std::size_t size) {
         int n = 0;
-        const int bytes = static_cast<int>(data.getSize() & ~static_cast<std::size_t>(1));
+        const int bytes = static_cast<int>(size & ~static_cast<std::size_t>(1));
         if (bytes < 2) return 0;
         for (auto& node : nodes_) {
             if (!node->host || !node->host->hasBlobs() || (isType ? node->type : node->id) != target) continue;
             int16_t* dst = node->host->blobPtr(slot, bytes);
             if (!dst) continue;
-            std::memcpy(dst, data.getData(), static_cast<std::size_t>(bytes));
+            std::memcpy(dst, data, static_cast<std::size_t>(bytes));
             node->host->blobCommit(slot, bytes / 2, 44100.0f, 1);
             ++n;
         }

@@ -26,7 +26,8 @@ import { CmiPage4 } from '../modular-mb/CmiPage4';
 import { cmiVoices } from '../modular-mb/cmiSync';
 import { Dx7EditorModal } from '../modular-mb/Dx7EditorModal';
 import { WasmModule } from '../modular-mb/runtime';
-import { setDx7RomSource } from '../modular-mb/runtime/audio/dx7Host';
+import { dx7Host, setDx7RomSource } from '../modular-mb/runtime/audio/dx7Host';
+import { DX7_PLUGIN_PARAMS } from '../modular-mb/dx7PluginParams';
 import { getEngine } from '../modular-mb/sim/engineSingleton';
 import { getProject, setProject, subscribe } from '../modular-mb/store';
 import { seedInternals } from '../modular-mb/seedModules';
@@ -503,6 +504,56 @@ function routeSubeditorsToPlugin(): void {
   engine.noteOff = (midi: number) => noteToPlugin(midi, 0);
 }
 
+/** MMB DX7 (Dx7Plugin.h): de DX7-editor op de parameters van de plugin. Elke
+ *  byte van de stem is een parameter (dx7PluginParams.ts); wat de editor zet
+ *  gaat naar de parameters, wat de DAW zet (automation, programma, control
+ *  surface) naar de editor. */
+function Dx7App() {
+  const voice = useRef(new Uint8Array(156));
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    routeSubeditorsToPlugin();
+    const handles: Handle[] = [];
+    let raf = 0, settle = 0;
+    const toEditor = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => dx7Host.setEditPatchFromHost(voice.current)); };
+    // Pas tonen als de stand binnen is, anders begint de editor bij ROM 1A en zet hij die in de parameters.
+    const arrived = () => { window.clearTimeout(settle); settle = window.setTimeout(() => { dx7Host.setEditPatchFromHost(voice.current); setReady(true); }, 250); };
+    DX7_PLUGIN_PARAMS.forEach((p, i) => {
+      handles[i] = attach(p.id, p.steps ? 'combo' : 'slider', (v) => {
+        const b = Math.max(0, Math.min(p.max, Math.round(Number(v)) - p.bias));
+        arrived();
+        if (voice.current[p.offset] === b) return;
+        voice.current[p.offset] = b;
+        toEditor();
+      });
+    });
+    // De editor schrijft de stem (slot 9): naar de parameters die veranderden.
+    WasmModule.remote = {
+      blob: (_target, _type, slot, data) => {
+        if (slot !== 9) return;
+        const bytes = new Uint8Array(data.buffer, data.byteOffset, Math.min(156, data.byteLength));
+        voice.current.set(bytes.subarray(145, 155), 145);   // de naam (geen parameter)
+        DX7_PLUGIN_PARAMS.forEach((p, i) => {
+          const b = Math.min(p.max, bytes[p.offset] ?? 0);
+          if (voice.current[p.offset] === b) return;
+          voice.current[p.offset] = b;
+          handles[i]?.set(b + p.bias);
+        });
+      },
+      ctl: () => {},
+    };
+    const timers = [150, 500, 1500].map((ms) => window.setTimeout(() => { for (const h of handles) h.refresh(); }, ms));
+    const fallback = window.setTimeout(() => setReady(true), 2500);
+    return () => { timers.forEach((t) => window.clearTimeout(t)); window.clearTimeout(fallback); window.clearTimeout(settle); cancelAnimationFrame(raf); };
+  }, []);
+  return (
+    <div style={{ background: '#0b0d12', minHeight: '100vh' }}>
+      {ready ? <Dx7EditorModal open onClose={() => {}} /> : <p style={{ color: '#e5e7eb', padding: 16, font: '14px system-ui' }}>DX7 laden…</p>}
+      {inPlugin && <ResizeGrip size={16} />}
+    </div>
+  );
+}
+
 /** De CR-78 Kit (Cr78KitPlugin.cpp): per klank een rij schuiven, met zijn noot. */
 const KIT_VOICES: [string, string][] = [
   ['Kick', '36'], ['Snare', '38'], ['Rim', '37'], ['Claves', '75'], ['Cowbell', '56'], ['HiHat', '42 46'],
@@ -640,6 +691,6 @@ const typeId = new URLSearchParams(window.location.search).get('type') ?? 'tp_mm
 document.title = inPlugin ? 'MMB' : `MMB ${typeId} (los, geen plugin)`;
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {typeId === 'kit_cr78' ? <KitApp /> : typeId === 'patch_generic' ? <GenericPatchApp /> : typeId.startsWith('patch_') ? <PatchApp typeId={typeId} /> : <App typeId={typeId} />}
+    {typeId === 'kit_cr78' ? <KitApp /> : typeId === 'dx7_plugin' ? <Dx7App /> : typeId === 'patch_generic' ? <GenericPatchApp /> : typeId.startsWith('patch_') ? <PatchApp typeId={typeId} /> : <App typeId={typeId} />}
   </StrictMode>,
 );

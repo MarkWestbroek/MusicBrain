@@ -612,6 +612,30 @@ tempo en transport komen vanzelf mee. De ritmebox (RHYTHM) in MMB Patch
 volgt Logic ook: `PatchEngine::transport` geeft hem bij de eerste
 maatstreep Run op de externe klok en een puls per tel.
 
+### MMB DX7 (2026-11-01)
+
+Mark wilde de DX7 in Logic met de Roto-Control bewerken. Die koppelt sinds
+januari 2026 met Logic als control surface en leert plugin-parameters
+(PLUGIN-modus). Daarom een eigen plugin met elke stemparameter als
+DAW-parameter, `tools/plugin/src/Dx7Plugin.h`:
+
+- Geluid: de patch "DX7 poly ×8" in de patchmotor (MIDI-IN met acht DX7-
+  stemmen), als patch-plugin gegenereerd (`pluginPatches.ts`,
+  `writeDx7Plugin`).
+- 145 parameters (`dx7PluginParams.ts`): eerst het algemene deel
+  (algoritme 1..32, feedback, transpose −24..+24, LFO, pitch-EG), dan per
+  operator toon, envelope en toetsschaal, in de groepen van de
+  Roto-pagina's. Samen vormen ze de edit-stem (slot 9, `edit` aan); een
+  wijziging zet hem bij het volgende blok, zonder geheugen te vragen.
+- Programma's: de 256 fabrieksklanken (1A 01 BRASS 1 … 4B 32). Een keuze
+  zet alle parameters, dus het project bewaart de stem als parameters.
+- Bediening: de DX7-editor van de editor. Wat hij zet gaat naar de
+  parameters; automation, een programma of een control surface zet de
+  editor (`dx7Host.setEditPatchFromHost`).
+- Gemeten: programma 1A 06 (STRINGS 3) en OP1/OP2 Level 0 klinken anders
+  dan de beginstand; na bewaren en openen sample voor sample gelijk.
+  auval geslaagd (Dx7p).
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde

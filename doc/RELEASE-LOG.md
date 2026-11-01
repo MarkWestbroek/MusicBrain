@@ -130,6 +130,17 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB DX7: elke stemparameter een DAW-parameter
+<!-- EN: MMB DX7: a DX7 instrument plugin with all 145 voice parameters as DAW parameters and 256 factory programs -->
+- Nieuwe AU/VST3 **MMB DX7**: achtstemmig, met alle 145 parameters van een
+  DX7-stem als parameter van de plugin. Logic kan ze automatiseren en de
+  Roto-Control kan ze leren via zijn Logic-koppeling (Mark).
+- De 256 fabrieksklanken staan in het presetmenu van Logic; een keuze zet
+  alle parameters.
+- Het venster is de DX7-editor van de MusicBrain-editor; hij loopt mee met
+  automation en met wat de Roto draait.
+- Zie [plugin.md](plans/plugin.md), "MMB DX7".
+
 ### 2026-11-01 — MMB CMI: Page 4 in de plugin
 <!-- EN: MMB CMI: the CMI page (draw harmonics, bank, from sample) inside the plugin -->
 - De losse MMB CMI heeft rechtsboven **Page 4**: harmonischen tekenen, de
