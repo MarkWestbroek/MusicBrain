@@ -540,7 +540,9 @@ in het venster.
 
 - **Kiezen:** de balk bovenaan heeft de catalogus van de editor (Basisset,
   Poly, Solo) en "Bestand…" voor een project uit de editor (de actieve
-  patch). Daaronder de fronts en Expert, zoals bij Poly 8 en CS-80.
+  patch). Daaronder de fronts en Expert, zoals bij Poly 8 en CS-80. Een
+  patch zonder eigen front krijgt het automatische front van de
+  speelmodus (`autoFront`).
 - **Hoe:** de bediening rekent de motor-JSON en de parameters uit
   (`patchPluginConfig.ts`, dezelfde functie als de generator voor de vaste
   patch-plugins) en geeft ze aan de plugin (`GenericPatch.h`, native

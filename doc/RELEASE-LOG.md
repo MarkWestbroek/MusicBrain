@@ -110,6 +110,10 @@
 - 256 vaste DAW-parameters; elke slot krijgt naam en eenheid van de knop
   van de geladen patch. De patch gaat mee in het project.
 - De patchmotor rekent nu ook de 4- en 16-kanaals mixer zelf.
+- Een patch zonder eigen front krijgt in de plugin het automatische front
+  van de speelmodus (`autoFront`, `pluginFronts` in `patchPlugins.ts`),
+  in plaats van alleen Expert (Mark: "de rest is gegenereerd en
+  schuifjes"). De DAW-parameters beginnen met de knoppen van dat front.
 - Gemeten: CS-80 en Poly 8 via MMB Patch bit-gelijk aan de vaste plugins.
   71 van de 125 catalogpatches klinken; modules op 32/48 kHz of met een
   andere blokgrootte (Plaits, Rings, Peaks, Elements, Clouds, DX7, Warps)

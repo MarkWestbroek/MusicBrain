@@ -4,7 +4,7 @@
 // (src/plugin-ui), zodat een parameter-id aan beide kanten dezelfde knop is.
 
 import { bypassRoute } from './bypassRoute';
-import { buildFrontModule } from './frontLayout';
+import { autoFront, buildFrontModule } from './frontLayout';
 import { resolveControls, type Control, type FrontItem, type ModularProject, type Patch, type PatchFront } from './types';
 
 /** Welke patches een plugin worden. Code: vier tekens, uniek onder de MMB-plugins (P = patch). */
@@ -24,11 +24,15 @@ const typeOf = (project: ModularProject, moduleId: string) =>
   project.moduleTypes.find((t) => t.id === project.modules.find((m) => m.id === moduleId)?.typeId);
 
 /**
- * De fronts zoals de plugin ze toont: elk effect op een front krijgt na zijn
- * laatste knop een bypass-schakelaar (als het front die nog niet heeft).
+ * De fronts zoals de plugin ze toont: de eigen fronts van de patch, of
+ * anders het automatische front (autoFront, zoals de speelmodus). Elk effect
+ * op een front krijgt na zijn laatste knop een bypass-schakelaar (als het
+ * front die nog niet heeft).
  */
 export function pluginFronts(project: ModularProject, patch: Patch): PatchFront[] {
-  return (patch.fronts ?? []).map((f) => {
+  // Zonder eigen front: het automatische, zoals de speelmodus (FrontTab).
+  const fronts = patch.fronts?.length ? patch.fronts : [autoFront(patch, project)];
+  return fronts.map((f) => {
     const items: FrontItem[] = [...f.items];
     const done = new Set(items.filter((it) => it.kind === 'control' && it.controlId === BYPASS_CONTROL_ID).map((it) => (it as { moduleId: string }).moduleId));
     for (let i = items.length - 1; i >= 0; i--) {
