@@ -170,6 +170,9 @@
   regio, op het tempo en transport van Logic (Mark: "CR78 in MIDI note
   mode").
 - Aanslag is accent; per klank Tone, Decay, Bend, Level en Pan, plus Master.
+- Zachte begrenzing (tanh) op de som, zoals de ritmebox: kick, snare, twee
+  hats en bekken samen gaven eerst precies 1,000 (geknipt; MODULES), nu
+  0,95. Losse slagen: kick 0,70 → 0,60, snare 0,48 → 0,45.
 - Gemeten: elke slag begint precies 64 samples na zijn noot (de gemelde
   vertraging van de omzetting); auval geslaagd.
 

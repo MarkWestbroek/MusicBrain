@@ -7,7 +7,8 @@
 //    42/44/46 HiHat, 49/51/57 Cymbal, 70 Maracas, 73/74 Guiro, 60/61 Bongo
 //    (61 een kwart lager), 62/63/64 Conga (64 een kwart lager), 54 Tamb.
 //  - Aanslag = accent (zoals de accent-CV van de module).
-//  - Per stem Tone, Decay, Bend, Level en Pan; Master voor het geheel.
+//  - Per stem Tone, Decay, Bend, Level en Pan; Master voor het geheel; een
+//    zachte begrenzing (tanh) op de som.
 //  - Als gastheer in HostProcessor (zoals de patch-plugins): de kern rekent
 //    op 44,1 kHz in blokken van 32, MIDI komt sample-precies binnen, de
 //    plugin zet om naar de rate van de DAW.
@@ -16,6 +17,7 @@
 #include "mmb_dsp/cr78.h"
 
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -154,9 +156,12 @@ public:
             at = next;
         }
         clock_ += kBlock;
+        // Zachte begrenzing op de som, zoals de ritmebox (rhythm_box.h): losse
+        // slagen bijna ongemoeid, kick + snare + hat + bekken buigen af in plaats
+        // van tegen 1,0 te knippen.
         for (int k = 0; k < kBlock; ++k) {
-            out_[0][k] = juce::jlimit(-1.0f, 1.0f, out_[0][k]);
-            out_[1][k] = juce::jlimit(-1.0f, 1.0f, out_[1][k]);
+            out_[0][k] = std::tanh(out_[0][k]);
+            out_[1][k] = std::tanh(out_[1][k]);
         }
         return true;
     }
