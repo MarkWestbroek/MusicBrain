@@ -43,6 +43,12 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
+#include <cstring>
+#if __has_include("dx7_roms.h")
+#include "dx7_roms.h"   // de 8 DX7-fabrieksbanken (generated/, uit editor/public/dx7/roms.bin)
+#define MMB_HAVE_DX7_ROMS 1
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -85,6 +91,13 @@ public:
                     node->host = std::make_unique<W2cHost>(*vt);
                     node->host->setRate(static_cast<float>(kRate));   // alleen met MMB_RATE_FLEX
                     node->host->init();
+#ifdef MMB_HAVE_DX7_ROMS
+                    // DX7: de fabrieksbanken als blobs, zoals de editor ze stuurt (slot 0..7);
+                    // anders speelt hij alleen zijn ingebouwde E.PIANO 1, wat Bank en Program ook zeggen.
+                    if (type == "tp_mmb_dx7" && node->host->hasBlobs())
+                        for (int b = 0; b < kDx7RomBanks; ++b)
+                            if (int16_t* p = node->host->blobPtr(b, 4096)) { std::memcpy(p, kDx7Roms[b], 4096); node->host->blobCommit(b, 0, 0.0f, 1); }
+#endif
                     const float rate = node->host->nativeRate();
                     const int block = node->host->block();
                     if (block == 1 && rate == 1000.0f) node->kind = Node::Cv;

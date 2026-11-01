@@ -241,13 +241,17 @@ function ExpertView({ modules, state, onChange, pxPerMm, height }: {
                     <select value={Number(v)} onChange={(e) => onChange(p, Number(e.target.value))} style={{ font: 'inherit' }}>
                       {c.positions.map((pos, i) => <option key={i} value={i}>{pos}</option>)}
                     </select>
-                  ) : c.kind === 'toggle' ? (
+                  ) : c.kind === 'toggle' || (c.kind === 'button' && !c.momentary) ? (
                     <input type="checkbox" checked={Boolean(v)} onChange={(e) => onChange(p, e.target.checked)} style={{ justifySelf: 'start' }} />
+                  ) : c.kind === 'button' ? (
+                    <button type="button" style={{ justifySelf: 'start', font: 'inherit', touchAction: 'none' }}
+                      onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); onChange(p, true); }}
+                      onPointerUp={() => onChange(p, false)} onPointerCancel={() => onChange(p, false)}>{c.label || 'Druk'}</button>
                   ) : (
                     <input type="range" min={0} max={1000} value={toPos(c, Number(v))} onChange={(e) => onChange(p, fromPos(c, Number(e.target.value)))} />
                   )}
                   <span style={{ textAlign: 'right', opacity: 0.8, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                    {c.kind === 'toggle' || c.kind === 'switch' ? '' : formatValue(c, v)}
+                    {c.kind === 'toggle' || c.kind === 'switch' || c.kind === 'button' ? '' : formatValue(c, v)}
                   </span>
                 </label>
               );
@@ -317,7 +321,7 @@ function PatchView({ built, slots, topPx }: { built: PatchViewData; slots: boole
         handles.current[p.id] = { set: (v) => h.set(toSlot(spec, v as ControlValue)), refresh: h.refresh };
         continue;
       }
-      const kind: Kind = p.control.kind === 'switch' ? 'combo' : p.control.kind === 'toggle' ? 'toggle' : 'slider';
+      const kind: Kind = p.control.kind === 'switch' ? 'combo' : p.control.kind === 'toggle' || p.control.kind === 'button' ? 'toggle' : 'slider';
       handles.current[p.id] = attach(p.id, kind, (v) => put(p, v));
     }
     // Zie App: de beginstand komt tijdens het laden niet altijd aan.

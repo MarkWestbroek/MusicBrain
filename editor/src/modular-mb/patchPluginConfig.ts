@@ -44,6 +44,7 @@ export function slotSpec(c: Control, state?: ControlValue): SlotSpec | undefined
     case 'switch':
       return { kind: 'choice', min: 0, max: c.positions.length - 1, def: num(state, c.defaultIndex), interval: 1, skewMid: 0, choices: c.positions };
     case 'toggle':
+    case 'button':
       return { kind: 'bool', min: 0, max: 1, def: num(state, c.defaultValue ? 1 : 0), interval: 1, skewMid: 0 };
     default:
       return undefined;

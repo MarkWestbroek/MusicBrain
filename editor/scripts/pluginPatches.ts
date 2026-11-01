@@ -60,9 +60,11 @@ function main(): void {
       const c = it.control;
       // De beginstand is die van de patch; een keuzeknop draagt hem in defaultIndex.
       const state = patch.controlState[it.moduleId]?.[it.controlId];
-      const row = spec((c.kind === 'switch'
+      // Een knop (PADS) is een aan/uit-parameter, zoals een toggle.
+      const asSpec = c.kind === 'button' ? ({ ...c, kind: 'toggle', defaultValue: Boolean(c.defaultValue) } as unknown as typeof c) : c;
+      const row = spec((asSpec.kind === 'switch'
         ? { ...c, defaultIndex: typeof state === 'number' ? state : c.defaultIndex }
-        : { ...c, defaultValue: state ?? (c as { defaultValue?: unknown }).defaultValue }) as typeof c);
+        : { ...asSpec, defaultValue: state ?? (asSpec as { defaultValue?: unknown }).defaultValue }) as typeof c);
       if (!row) throw new Error(`${p.label}: ${it.controlId} kan geen parameter zijn`);
       // spec() begint met { "<control-id>", "<naam>", …: id en naam vervangen.
       rows.push(row.replace(/^\{ "(?:[^"\\]|\\.)*", "(?:[^"\\]|\\.)*"/, `{ ${cstr(it.id)}, ${cstr(it.label)}`));
@@ -119,7 +121,30 @@ function main(): void {
     console.log(`${p.label} → ${p.target}: ${config.project.modules.length} modules (${mods.length} soorten wasm), ${rows.length} parameters, JSON ${(json.length / 1024).toFixed(1)} KB`);
   }
   fs.writeFileSync(path.join(outDir, 'patches.cmake'), cmake.join('\n') + '\n');
+  writeDx7Roms();
   writeGeneric();
+}
+
+/** De 8 DX7-fabrieksbanken als C-tabel: de patchmotor geeft ze aan elke DX7 (PatchEngine.h). */
+function writeDx7Roms(): void {
+  const rom = fs.readFileSync(path.join(repo, 'editor', 'public', 'dx7', 'roms.bin'));
+  if (rom.length !== 8 * 4096) throw new Error(`dx7/roms.bin: ${rom.length} bytes, verwacht 32768`);
+  const rows: string[] = [];
+  for (let b = 0; b < 8; ++b) {
+    rows.push('    {');
+    for (let i = 0; i < 4096; i += 32) rows.push('        ' + [...rom.subarray(b * 4096 + i, b * 4096 + i + 32)].join(',') + ',');
+    rows.push('    },');
+  }
+  fs.writeFileSync(path.join(outDir, 'dx7_roms.h'), [
+    '// Gegenereerd door editor/scripts/pluginPatches.ts uit editor/public/dx7/roms.bin; niet met de hand wijzigen.',
+    '#pragma once',
+    '#include <cstdint>',
+    'constexpr int kDx7RomBanks = 8;',
+    'inline const uint8_t kDx7Roms[8][4096] = {',
+    ...rows,
+    '};',
+    '',
+  ].join('\n'));
 }
 
 /**

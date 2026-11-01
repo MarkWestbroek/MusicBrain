@@ -118,6 +118,18 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB Patch: DX7-banken, PADS-knoppen, namen uit de patch
+<!-- EN: MMB Patch: DX7 factory banks, PADS buttons as parameters, names from the patch -->
+- DX7 in een patch: Bank en Program deden niets, want niemand gaf hem zijn
+  banken; hij speelde altijd E.PIANO 1. De patchmotor laadt nu de 8
+  fabrieksbanken (`generated/dx7_roms.h` uit `editor/public/dx7/roms.bin`,
+  `PatchEngine.h`). Een wissel geldt vanaf de volgende noot, zoals op de
+  Teensy (Mark: "program en bank change doet niets").
+- Knoppen (`button`, zoals PADS) zijn nu ook parameters: Start/Stop van de
+  ritmebox werkt (Mark: "CR-78: start - stop doet het niet").
+- Een parameter zonder label op het front heet naar het onderschrift van de
+  patch (`controlLabels`): "Start/Stop" in plaats van "PADS 1".
+
 ### 2026-11-01 — Patchmotor: Plaits, Rings, Elements, Clouds, DX7 en Warps erbij
 <!-- EN: Patch engine: modules at other sample rates or block sizes now run behind a resampler; 113 of 125 catalogue patches play -->
 - Modules die op 32 of 48 kHz of met een andere blokgrootte rekenen,

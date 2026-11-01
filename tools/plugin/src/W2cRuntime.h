@@ -148,6 +148,8 @@ public:
     }
 
     bool hasBank() const { return vt_.blob_ptr && vt_.blob_commit && vt_.zone_set && vt_.zone_count; }
+    /** Blobs zonder keymap (DX7: banken als blob). */
+    bool hasBlobs() const { return vt_.blob_ptr && vt_.blob_commit; }
     int16_t* blobPtr(int slot, int bytes) {
         u32 at = 0;
         if (!guarded([&] { at = vt_.blob_ptr(inst_, static_cast<u32>(slot), static_cast<u32>(bytes)); }) || at == 0) return nullptr;

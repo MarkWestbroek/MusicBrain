@@ -59,7 +59,8 @@ export interface PluginParam {
 /** Een module in de Expert-tab: zijn knoppen en displays, onder zijn naam. */
 export interface ExpertModule { moduleId: string; name: string; params: PluginParam[]; displays: Control[] }
 
-const PARAM_KINDS = new Set<Control['kind']>(['knob', 'slider', 'switch', 'toggle']);
+// Knoppen (PADS) ook: een tik is aan en weer uit, zoals op het paneel.
+const PARAM_KINDS = new Set<Control['kind']>(['knob', 'slider', 'switch', 'toggle', 'button']);
 
 /**
  * Alle modules van de patch zoals de editor ze toont bij Binnenkijken: per
@@ -92,7 +93,8 @@ export function expertModules(project: ModularProject, patch: Patch): ExpertModu
     // Naam van een effect op het front ("Galm"), voor zijn bypass.
     const onFront = [...frontLabel.entries()].find(([k]) => k.startsWith(`${m.id}\0`) && !k.endsWith(`\0${BYPASS_CONTROL_ID}`))?.[1];
     const params = controls.map((c): PluginParam => {
-      const label = frontLabel.get(`${m.id}\0${c.id}`);
+      // Naam: het label op het front, anders het onderschrift van de patch (controlLabels, "Start/Stop").
+      const label = frontLabel.get(`${m.id}\0${c.id}`) ?? patch.controlLabels?.[m.id]?.[c.id];
       const own = 'label' in c && c.label ? c.label : c.id;
       return { id: `${short}${n}_${c.id === BYPASS_CONTROL_ID ? 'bypass' : c.id}`, moduleId: m.id, controlId: c.id, control: c,
         label: c.id === BYPASS_CONTROL_ID ? `${onFront ?? `${name}${n > 1 ? ` ${n}` : ''}`} bypass` : label ?? `${name}${n > 1 ? ` ${n}` : ''} ${own}` };
