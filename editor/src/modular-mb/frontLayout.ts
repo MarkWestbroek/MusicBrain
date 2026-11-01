@@ -144,6 +144,8 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
         const bound = all.find((x) => x.id === id);
         const key = `${vid}:${id}`;
         binds[key] = { moduleId: it.moduleId, controlId: id, ...(bound ? { def: defaultValueOf(bound) } : {}) };
+        // Een keuzedisplay (ADR 0017) schrijft via deze sleutel naar de knop.
+        map[key] = { kind: 'control', moduleId: it.moduleId, controlId: id };
         return key;
       };
       const label = it.label ?? real.label;

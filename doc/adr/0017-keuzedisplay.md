@@ -54,10 +54,16 @@ toont en bij een klik de lijst opent.
   (`SamplerBankStrip` in `ModulePanel.tsx`, lijst in `BankPicker.tsx`). Daar
   staat ook "— laden…" achter de naam zolang de bank nog binnenkomt, want de
   naam is er eerder dan het geluid.
-- Volgende stap, nog niet gebouwd: een veld `pick` op `DisplayControl`,
-  zodat elk display met `bindTo` + `lookup` vanzelf een keuzedisplay wordt
-  (DX7, Elements, Plaits, CONV, FOF). Het bankstrookje gaat dan in dat
-  algemene display op.
+- Tweede stap (2026-11-01, op Marks verzoek na een proef in Logic): elk
+  display met `bindTo` + `lookup` is vanzelf een keuzedisplay (DX7, ritmebox,
+  Elements, Plaits, CONV, FOF, RATCHET). Een apart veld `pick` bleek niet
+  nodig: een `lookup` is altijd een lijst namen bij een getal. Bij een
+  2D-lookup (DX7: `bindTo2` = bank) toont de lijst alle rijen onder een kopje
+  (`lookupRows`, bij de DX7 de ROM-namen) en zet een keuze beide controls.
+  ‹ › staan alleen naast displays van 6 tekens of meer; een smal display
+  kiest alleen via de lijst. De lijst (`ChoicePicker` in `BankPicker.tsx`) is
+  dezelfde als die van het bankstrookje. Het bankstrookje zelf blijft apart,
+  want zijn namen komen niet uit een `lookup`.
 - Op een patch-front is een keuzedisplay automatisch ook bedienbaar. Het
   front verwijst naar het display, en het display schrijft naar de control.
 - De `lookup` wordt daarmee een echte keuzelijst, niet alleen een

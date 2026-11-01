@@ -21,7 +21,7 @@ import {
 import { programNames } from './modulePrograms';
 import { uid } from './store';
 import { derivedTaper } from './taper';
-import { DX7_VOICE_NAMES } from './dx7BankNames';
+import { DX7_BANK_LABELS, DX7_VOICE_NAMES } from './dx7BankNames';
 
 // ── helpers ────────────────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ function slider(id: string, label: string, x: number, y: number,
 }
 function display(id: string, x: number, y: number,
                  opts: Partial<{ label: string; digits: number; style: 'led'|'oled'|'led-green'; bindTo: string;
-                                 bindTo2: string; lookup: string[][];
+                                 bindTo2: string; lookup: string[][]; lookupRows: string[];
                                  format: 'int'|'float1'|'float2'|'midi'|'onoff'; text: string;
                                  size: 'small'|'medium'|'large' }> = {}) {
   return {
@@ -107,6 +107,7 @@ function display(id: string, x: number, y: number,
       bindTo: opts.bindTo,
       bindTo2: opts.bindTo2,
       lookup: opts.lookup,
+      ...(opts.lookupRows ? { lookupRows: opts.lookupRows } : {}),
       format: opts.format,
       text: opts.text,
       size: opts.size,
@@ -3211,6 +3212,7 @@ function mmbDx7() {
         digits: 10, style: 'led-green', size: 'medium',
         bindTo: 'program', bindTo2: 'bank',
         lookup: [...DX7_VOICE_NAMES, Array.from({ length: 32 }, (_, i) => `USER ${i}`)],
+        lookupRows: DX7_BANK_LABELS,
         text: '----------',
       }),
       knob('coarse', 'Coarse', w*0.25, 76, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),

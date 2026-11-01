@@ -224,6 +224,8 @@ export interface DisplayControl {
   /** Tekst-lookup: toont `lookup[bindTo2-waarde ?? 0][bindTo-waarde]`
    *  (bijv. DX7-voicenamen per bank/program). Buiten bereik → `text`/'--'. */
   lookup?: string[][];
+  /** Kopjes van de rijen van `lookup` in de keuzelijst (DX7: '1A'…'USR'). */
+  lookupRows?: string[];
   format?: 'int' | 'float1' | 'float2' | 'midi' | 'onoff';
   /** Fallback-tekst als bindTo leeg is of niet bestaat. */
   text?: string;

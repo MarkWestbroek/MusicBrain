@@ -19,7 +19,7 @@ import { MidiPortLeds } from './sim/MidiPortLeds';
 import { useTeensyLink } from './teensyLink';
 import { bankTitle } from './teensyStorage';
 import { subscribeBanks, banksVersion, simBankName, simBankLoading, hostBank, hostBankList } from './sim/bankAutoLoad';
-import { BankPicker } from './BankPicker';
+import { BankPicker, ChoicePicker, type ChoiceRow } from './BankPicker';
 import { subscribeLyricBanks, lyricBanksVersion, simLyricBank } from './lyric/lyricStore';
 import {
   dragTravelPx, fromTaper, toTaper, wheelStep,
@@ -231,6 +231,8 @@ export function ModulePanel({
               controls={controls}
               controlState={controlState}
               onChange={!disabled && onControlChange ? (v) => onControlChange(c.id, v) : undefined}
+              onSet={!disabled && onControlChange && !(c.kind === 'display' && c.bindTo && disabledControlIds?.has(c.bindTo))
+                ? onControlChange : undefined}
               textCol={textCol}
               caption={controlLabels?.[c.id]}
               printed={cp.panelLabel}
@@ -618,13 +620,15 @@ function ControlGlyph(props: {
   controls?: Control[];
   controlState?: Record<string, ControlValue>;
   onChange?: (v: ControlValue) => void;
+  /** Een andere control van de module zetten: het keuzedisplay schrijft naar zijn `bindTo`. */
+  onSet?: (controlId: string, v: ControlValue) => void;
   textCol: string;
   caption?: string;
   onCaption?: (text: string) => void;
   /** ControlPlacement.panelLabel: wat er gedrukt staat (knop). */
   printed?: string;
 }): JSX.Element | null {
-  const { control: c, x, y, rotation, sizeOverride, value, controls, controlState, onChange, textCol, caption, onCaption, printed } = props;
+  const { control: c, x, y, rotation, sizeOverride, value, controls, controlState, onChange, onSet, textCol, caption, onCaption, printed } = props;
   switch (c.kind) {
     case 'knob':
       return <KnobGlyph c={c} x={x} y={y} sizeOverride={sizeOverride}
@@ -656,7 +660,7 @@ function ControlGlyph(props: {
         textCol={textCol} />;
     case 'display':
       return <DisplayGlyph c={c} x={x} y={y}
-        controls={controls} controlState={controlState}
+        controls={controls} controlState={controlState} onSet={onSet}
         textCol={textCol} />;
     case 'led':
       return <LedGlyph c={c} x={x} y={y}
@@ -1182,18 +1186,29 @@ function ExoticGlyph({
   );
 }
 
-// ── Display (read-only) ─────────────────────────────────────────────────
+// ── Display (alleen-lezen, of keuzedisplay) ─────────────────────────────
+
+/** Hoogste stand van een gebonden control; undefined = geen getal-control. */
+function maxOfControl(b: Control | undefined): number | undefined {
+  if (!b) return undefined;
+  if (b.kind === 'knob' || b.kind === 'slider') return Math.round(b.max);
+  if (b.kind === 'switch') return b.positions.length - 1;
+  return undefined;
+}
 
 function DisplayGlyph({
-  c, x, y, controls, controlState, textCol,
+  c, x, y, controls, controlState, onSet, textCol,
 }: {
   c: import('./types').DisplayControl;
   x: number; y: number;
   controls?: Control[];
   controlState?: Record<string, ControlValue>;
+  /** Gezet = keuzedisplay (ADR 0017): een naamdisplay met `lookup` kiest zelf. */
+  onSet?: (controlId: string, v: ControlValue) => void;
   textCol: string;
 }): JSX.Element {
   const ts = useContext(TextScale);
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const style = c.style ?? 'led';
   // Resolve waarde
   let display = c.text ?? '';
@@ -1233,8 +1248,49 @@ function DisplayGlyph({
   const w = c.digits * charW + 2.0;
   const bg = style === 'oled' ? '#0a1424' : style === 'led-green' ? '#06140a' : '#1a0a0a';
   const fg = style === 'oled' ? '#67e8f9' : style === 'led-green' ? '#4ade80' : '#f87171';
+
+  // Keuzedisplay (ADR 0017): klik = de lijst met alle namen, ‹ › = één stap.
+  // Het schrijft naar de gebonden knop(pen), nooit een eigen waarde. Op een
+  // front staat de knop zelf vaak niet in `controls`; dan telt de lookup.
+  const bound = controls?.find((x2) => x2.id === c.bindTo);
+  const bound2 = c.bindTo2 ? controls?.find((x2) => x2.id === c.bindTo2) : undefined;
+  const pickable = !!(onSet && c.lookup && c.bindTo
+    && (!bound || maxOfControl(bound) !== undefined) && (!bound2 || maxOfControl(bound2) !== undefined));
+  const cur = numOf(c.bindTo), cur2 = c.bindTo2 ? numOf(c.bindTo2) : 0;
+  const rowMax = (r: number): number => Math.min((c.lookup?.[r]?.length ?? 1) - 1, maxOfControl(bound) ?? Infinity);
+  const rowsOf = (): ChoiceRow[] => {
+    const out: ChoiceRow[] = [];
+    const first = c.bindTo2 ? 0 : cur2;
+    const last = c.bindTo2 ? Math.min((c.lookup?.length ?? 1) - 1, maxOfControl(bound2) ?? Infinity) : cur2;
+    for (let r = first; r <= last; r++) {
+      for (let i = 0; i <= rowMax(r); i++) {
+        out.push({
+          key: `${r}:${i}`, label: `${String(i).padStart(2, '0')} · ${c.lookup?.[r]?.[i] ?? ''}`,
+          ...(c.bindTo2 && i === 0 ? { header: c.lookupRows?.[r] ?? `${bound2?.label ?? 'Rij'} ${r}` } : {}),
+        });
+      }
+    }
+    return out;
+  };
+  const pick = (key: string): void => {
+    const [r, i] = key.split(':').map(Number);
+    if (c.bindTo2 && r !== cur2) onSet?.(c.bindTo2, r!);
+    onSet?.(c.bindTo!, i!);
+  };
+  const step = (d: number) => (e: React.PointerEvent): void => {
+    e.stopPropagation(); e.preventDefault();
+    const n = Math.min(rowMax(cur2), Math.max(0, cur + d));
+    if (n !== cur) onSet?.(c.bindTo!, n);
+  };
+  // Pijlen alleen naast een display waar een naam op past; een smal
+  // display (RATCHET: 3 tekens) kiest alleen via de lijst.
+  const arrows = pickable && c.digits >= 6;
+  const ax = 1.8;
+
   return (
-    <g>
+    <g style={pickable ? { cursor: 'pointer', touchAction: 'none', WebkitTapHighlightColor: 'transparent' } : undefined}
+      onPointerDown={pickable ? (e) => { e.stopPropagation(); e.preventDefault(); setMenuAt({ x: e.clientX, y: e.clientY }); } : undefined}>
+      {pickable && <title>{`Klik: kies uit de lijst${arrows ? '; ‹ › één stap' : ''}.`}</title>}
       {c.label && (
         <text x={x} y={y - h / 2 - labelOffset} fontSize={1.4 * ts} fill={textCol} textAnchor="middle">
           {c.label}
@@ -1247,6 +1303,16 @@ function DisplayGlyph({
         style={{ letterSpacing: '0.08em' }}>
         {text}
       </text>
+      {arrows && ([[-1, x - w / 2 - ax / 2 - 0.3, '‹'], [1, x + w / 2 + ax / 2 + 0.3, '›']] as const).map(([d, ax0, ch]) => (
+        <g key={d} onPointerDown={step(d)}>
+          <rect x={ax0 - ax / 2} y={y - h / 2} width={ax} height={h} fill="transparent" />
+          <text x={ax0} y={y + 1.0} fontSize={2.8 * ts} fill={textCol} opacity={0.7} textAnchor="middle">{ch}</text>
+        </g>
+      ))}
+      {menuAt && pickable && (
+        <ChoicePicker at={menuAt} rows={rowsOf()} current={`${cur2}:${cur}`}
+          onPick={(k) => { pick(k); setMenuAt(null); }} onClose={() => setMenuAt(null)} />
+      )}
     </g>
   );
 }
