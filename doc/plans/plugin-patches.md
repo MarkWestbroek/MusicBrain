@@ -191,9 +191,9 @@ weg.
 patch: kies er een uit de catalogus (Basisset, Poly, Solo) of open een
 project uit de editor (.json, de actieve patch). Details en metingen:
 [plugin.md](plugin.md), "MMB Patch". Van de 125 catalogpatches klinken er
-inmiddels 113 (2026-11-01: modules op een andere rate of blokgrootte
-draaien achter een resampler). Over: banken in de motor (Sampler,
-Mellotron, Zang: 10 patches).
+inmiddels 122 (2026-11-01: modules op een andere rate of blokgrootte
+draaien achter een resampler, en samplebanken laden in de motor). Over:
+ZANG met zijn lyricbanken (2 patches) en de vocoder met microfoon (1).
 
 **Stand 2026-10-29:** stap 3 staat. "MMB Poly 8" en "MMB CS-80 Brass" zijn
 plugins, met MIDI-IN, aftertouch en modwheel zoals op de Teensy. Zie

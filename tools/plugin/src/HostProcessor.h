@@ -31,6 +31,7 @@
 // delen.
 
 #include "MmbPluginBase.h"
+#include "MmbsLoad.h"
 #include "NoteMap.h"
 #include "mmb_dsp/sample_bank.h"
 
@@ -141,38 +142,10 @@ public:
     bool applyBank(const void* data, std::size_t size, juce::String& error) override {
         if constexpr (!Host::kBank) { error = "geen bank"; return false; }
         else {
-            using namespace mmb_dsp;
             if (!host_.hasBank()) { error = "geen bank"; return false; }
             if (slot_ != 0) { error = "tweede exemplaar: de bank zit in het eerste"; return false; }
-            const auto* b = static_cast<const uint8_t*>(data);
-            if (size < sizeof(BankHeader) || std::memcmp(b, "MMBS", 4) != 0) { error = "geen .mmbs-bank"; return false; }
-            BankHeader h; std::memcpy(&h, b, sizeof h);
-            if (h.version < kBankVersionMin || h.version > kBankVersion) { error = "bankversie " + juce::String(h.version) + " onbekend"; return false; }
-            const std::size_t zoneSize = h.version >= 2 ? sizeof(ZoneRecord) : sizeof(ZoneRecordV1);
-            const std::size_t dataAt = sizeof(BankHeader) + h.numSlots * sizeof(SlotHeader) + h.numZones * zoneSize;
-            if (dataAt > size) { error = "bank afgekapt (tabellen)"; return false; }
             host_.init();           // sampler en TAPE STRIP zijn niet MMB_RATE_FLEX: vóór prepare laden mag
-            host_.zoneCount(0);     // eerst de keymap weg: geen stem op een half geladen slot
-            const std::size_t samples = (size - dataAt) / 2;
-            for (uint32_t i = 0; i < h.numSlots; ++i) {
-                SlotHeader sh; std::memcpy(&sh, b + sizeof(BankHeader) + i * sizeof(SlotHeader), sizeof sh);
-                const int ch = sh.channels ? sh.channels : 1;
-                const std::size_t start = static_cast<std::size_t>(sh.frameOffset) * ch, count = static_cast<std::size_t>(sh.frames) * ch;
-                if (start + count > samples) { error = "bank afgekapt (slot " + juce::String(i) + ")"; return false; }
-                int16_t* dst = host_.blobPtr(static_cast<int>(i), static_cast<int>(count * 2));
-                if (!dst) { error = "geen geheugen voor slot " + juce::String(i); return false; }
-                std::memcpy(dst, b + dataAt + start * 2, count * 2);
-                host_.blobCommit(static_cast<int>(i), static_cast<int>(sh.frames), sh.rate > 0 ? sh.rate : 44100.0f, ch);
-            }
-            for (uint32_t i = 0; i < h.numZones; ++i) {
-                ZoneRecord z {};
-                std::memcpy(&z, b + sizeof(BankHeader) + h.numSlots * sizeof(SlotHeader) + i * zoneSize, zoneSize);
-                host_.zoneSet(static_cast<int>(i), z.slot, z.lowKey, z.highKey, z.lowVel, z.highVel, z.root, z.tuneCents, z.gain, z.pan,
-                              z.loopMode, static_cast<int>(z.loopStart), static_cast<int>(z.loopEnd), z.decay, z.release, z.velTrack,
-                              h.version >= 2 ? z.attack : 0.0f);
-            }
-            host_.zoneCount(static_cast<int>(h.numZones));
-            return true;
+            return applyMmbs(host_, data, size, error);
         }
     }
 

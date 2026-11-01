@@ -54,6 +54,14 @@ inline juce::File bankDir() {
     return base.getChildFile("MusicBrain").getChildFile("banks");
 }
 
+/** Bestand bij Bank-knop @p n: index.json `defaults` in de bankmap (leeg = geen). */
+inline juce::File bankKnobFile(int n) {
+    const juce::File dir = bankDir();
+    const juce::var index = juce::JSON::parse(dir.getChildFile("index.json"));
+    const juce::String file = index["defaults"][juce::Identifier(juce::String(n))].toString();
+    return file.isEmpty() ? juce::File() : dir.getChildFile(file);
+}
+
 /** Banknaam uit de kop van een `.mmbs` (bytes 16..44), leeg als het geen bank is. */
 inline juce::String mmbsName(const void* data, std::size_t size) {
     const char* b = static_cast<const char*>(data);
@@ -486,13 +494,7 @@ private:
         });
     }
 
-    /** Bestand bij Bank-knop @p n: index.json `defaults` in de bankmap. */
-    static juce::File knobFile(int n) {
-        const juce::File dir = bankDir();
-        const juce::var index = juce::JSON::parse(dir.getChildFile("index.json"));
-        const juce::String file = index["defaults"][juce::Identifier(juce::String(n))].toString();
-        return file.isEmpty() ? juce::File() : dir.getChildFile(file);
-    }
+    static juce::File knobFile(int n) { return bankKnobFile(n); }
 
     const ModuleSpec& spec_;
     const bool synth_;

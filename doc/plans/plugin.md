@@ -584,7 +584,11 @@ in het venster.
   microfooningang (1), en "Rings + FREQ SHIFT": die kabelt alleen
   `out_l`, en die is bij Rings stil, ook in de losse RINGS-plugin
   (doorgegeven aan MODULES).
-- **Nog niet:** banken in een patch, een patch uit de editor rechtstreeks
+- **Banken in een patch (2026-11-01):** elke sampler, TAPE STRIP en
+  PERCUTER in de patch laadt de bank van zijn Bank-knop uit de bankmap
+  (`PatchEngine::loadBanks`, `MmbsLoad.h`); een knopwissel laadt MMB Patch
+  op de message-thread (timer). 122 van de 125 catalogpatches klinken.
+- **Nog niet:** lyricbanken (ZANG), een patch uit de editor rechtstreeks
   naar de plugin sturen, fabriekspresets in het presetmenu van de DAW. De
   vaste patch-plugins (Poly 8, CS-80) krijgen de nieuwe motor bij hun
   volgende build.

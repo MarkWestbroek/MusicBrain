@@ -118,6 +118,20 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB Patch: samplebanken in een patch
+<!-- EN: MMB Patch: sample banks load inside a patch (sampler, Mellotron, Percuter) -->
+- Sampler, TAPE STRIP (Mellotron) en PERCUTER klinken nu ook in een patch:
+  de motor laadt de bank van hun Bank-knop uit de bankmap, dezelfde als die
+  van SAMPLER en TAPESTRIP. Draai je de knop (of automation), dan laadt MMB
+  Patch de nieuwe bank buiten de audiothread (een timer); een poly-groep
+  leest het bestand één keer.
+- Het laden van een `.mmbs` is één gedeelde functie (`MmbsLoad.h`) voor de
+  losse plugins en de patchmotor.
+- In MMB Patch klinken nu 122 van de 125 catalogpatches. Over: ZANG
+  (lyricbanken, 2 patches) en de vocoder met microfoon (1).
+- `MmbPluginCheck` laat tijdens het renderen de message-loop lopen, zodat
+  timers van de plugin meedoen.
+
 ### 2026-11-01 — MMB Patch: de ritmebox volgt Logic
 <!-- EN: MMB Patch: the rhythm box follows the DAW transport (tempo, start/stop, bar line) -->
 - Speelt Logic, dan loopt een ritmebox (RHYTHM, de CR-78-presets) in MMB

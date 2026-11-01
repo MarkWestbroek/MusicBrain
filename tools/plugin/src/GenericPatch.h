@@ -127,6 +127,7 @@ public:
         if (engine_) engine_->transport(playing, bpm, ppq, bar, engine_->now() + nativeOffset, span);
     }
 
+    PatchEngine* engine() { return engine_.get(); }
     /** Andere motor en slots (onder de callback-lock). De oude komen terug in de argumenten. */
     void swap(std::unique_ptr<PatchEngine>& engine, std::vector<PatchSlot>& slots) {
         std::swap(engine_, engine);
@@ -139,9 +140,10 @@ private:
     float out_[2][PatchEngine::kBlock] = {};
 };
 
-class GenericPatchProcessor final : public HostProcessor<GenericPatchHost> {
+class GenericPatchProcessor final : public HostProcessor<GenericPatchHost>, private juce::Timer {
 public:
-    explicit GenericPatchProcessor(const ModuleSpec& spec) : HostProcessor(spec, true) {}
+    explicit GenericPatchProcessor(const ModuleSpec& spec) : HostProcessor(spec, true) { startTimer(200); }
+    ~GenericPatchProcessor() override { stopTimer(); }
 
     juce::String slotName(int i) const override {
         const juce::ScopedLock sl(lock_);
@@ -220,11 +222,14 @@ private:
         }
         auto engine = std::make_unique<PatchEngine>();
         if (!engine->load(root["json"].toString(), [](const std::string& t) { return genericModule(t); }, error)) return fail(error);
-        // Modules met een bank blijven stil (nog geen banken in de motor): zeggen.
+        // Samplebanken uit de bankmap (de motor speelt nog niet: zonder lock).
+        juce::StringArray notes;
+        engine->loadBanks(readBank, nullptr, notes);
+        // ZANG (lyricbanken) blijft stil: zeggen.
         juce::StringArray bankTypes;
         for (const auto& t : engine->needsBank()) bankTypes.add(juce::String(t).fromFirstOccurrenceOf("tp_mmb_", false, false).toUpperCase());
-        const juce::String warning = bankTypes.isEmpty() ? juce::String()
-            : bankTypes.joinIntoString(", ") + juce::String::fromUTF8(" heeft een bank nodig; die laadt MMB Patch nog niet, dus dat deel blijft stil");
+        if (!bankTypes.isEmpty()) notes.add(bankTypes.joinIntoString(", ") + juce::String::fromUTF8(" heeft een bank nodig die MMB Patch nog niet laadt, dus dat deel blijft stil"));
+        const juce::String warning = notes.joinIntoString("; ");
         std::vector<PatchSlot> forHost = slots;
         {
             const juce::ScopedLock cl(getCallbackLock());
@@ -249,6 +254,21 @@ private:
         std::fflush(stdout);
         return true;
     }
+    /** Bank van knopstand @p knob uit de bankmap (dezelfde als SAMPLER en TAPESTRIP). */
+    static bool readBank(int knob, juce::MemoryBlock& data) {
+        const juce::File f = bankKnobFile(knob);
+        return f.existsAsFile() && f.loadFileAsData(data);
+    }
+    /** Een Bank-knop draaide (slot of automation): de nieuwe bank laden, buiten de audiothread. */
+    void timerCallback() override {
+        PatchEngine* e = host().engine();
+        if (!e || !e->banksPending()) return;
+        juce::StringArray notes;
+        e->loadBanks(readBank, &getCallbackLock(), notes);
+        const juce::ScopedLock sl(lock_);
+        if (!notes.isEmpty()) warning_ = notes.joinIntoString("; ");
+    }
+
     bool fail(const juce::String& e) {
         const juce::ScopedLock sl(lock_);
         error_ = e;

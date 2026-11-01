@@ -384,8 +384,11 @@ int main(int argc, char** argv) {
         plugin->setPlayHead(&playHead);
         std::printf("transport: %.1f bpm vanaf kwart %.2f, start na %.2f s\n", playHead.bpm, playHead.ppq, playHead.startAt);
     }
+    const int dispatchEvery = static_cast<int>(0.1 * useRate);
     for (int pos = 0; pos < total; pos += block) {
         playHead.now = pos / useRate;
+        // Elke 0,1 s even de message-loop: timers van de plugin (bank laden na een knopwissel) lopen zo mee.
+        if (pos / dispatchEvery != (pos + block) / dispatchEvery) juce::MessageManager::getInstance()->runDispatchLoopUntil(30);
         buf.clear();
         midi.clear();
         const int n = juce::jmin(block, total - pos);

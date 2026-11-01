@@ -46,6 +46,7 @@
 // bv. in_r bij een mono bron, zoals de firmware mono op beide kanten zet). Overgang in ~10 ms, met trails: de invoer van het
 // effect gaat dicht, zijn uitgang klinkt uit, het droge signaal komt erbij.
 
+#include "MmbsLoad.h"
 #include "W2cRuntime.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
@@ -58,6 +59,8 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
+#include <map>
 #include <cmath>
 #include <functional>
 #include <memory>
@@ -122,11 +125,14 @@ public:
                     node->block = block;
                     if (node->host->hasMidi()) midiNodes_.push_back(node.get());
                     if (type == "tp_mmb_rhythm") rhythmNodes_.push_back(node.get());
-                    // Banken (sampler, TAPE STRIP, ZANG) laadt de motor nog niet: zo'n module blijft stil.
-                    if ((node->host->hasBank() || type == "tp_mmb_zang") &&
+                    // Samplebanken (sampler, TAPE STRIP, PERCUTER): de Bank-knop kiest een
+                    // .mmbs uit de bankmap; laden doet loadBanks() (buiten de audiothread).
+                    if (node->host->hasBank() && type != "tp_mmb_zang") { node->bankNode = true; node->wantBank = 0; bankNodes_.push_back(node.get()); }
+                    // ZANG (lyricbanken) laadt de motor nog niet: zo'n module blijft stil.
+                    else if (type == "tp_mmb_zang" &&
                         std::find(needsBank_.begin(), needsBank_.end(), type) == needsBank_.end()) {
                         needsBank_.push_back(type);
-                        std::printf("[mmb] patch: %s heeft een bank nodig; die laadt de patchmotor nog niet, dus hij blijft stil\n", type.c_str());
+                        std::printf("[mmb] patch: %s heeft een lyricbank nodig; die laadt de patchmotor nog niet, dus hij blijft stil\n", type.c_str());
                     }
                 }
                 byId_[id] = node.get();
@@ -208,6 +214,41 @@ public:
     double now() const { return clock_; }
 
     /** Eén blok van kBlock samples; @p l en @p r krijgen de uitgang. */
+    /** Leest de bank van knopstand n (de bankmap); false als die er niet is. */
+    using BankReader = std::function<bool(int knob, juce::MemoryBlock& data)>;
+
+    /** Wacht er een Bank-knop op een andere bank? */
+    bool banksPending() const {
+        for (const Node* n : bankNodes_) if (n->wantBank.load() != n->loadedBank) return true;
+        return false;
+    }
+    /**
+     * Laadt de gevraagde banken (message-thread). @p lock: om het overzetten
+     * heen (de callback-lock van de plugin), of null zolang de motor nog niet
+     * speelt. Fouten komen in @p errors ("SAMPLER: geen bank 21").
+     */
+    void loadBanks(const BankReader& read, const juce::CriticalSection* lock, juce::StringArray& errors) {
+        std::map<int, juce::MemoryBlock> cache;   // een poly-groep vraagt acht keer dezelfde bank
+        for (Node* n : bankNodes_) {
+            const int want = n->wantBank.load();
+            if (want == n->loadedBank) continue;
+            auto it = cache.find(want);
+            if (it == cache.end()) {
+                juce::MemoryBlock data;
+                if (!read(want, data)) data.reset();
+                it = cache.emplace(want, std::move(data)).first;
+            }
+            n->loadedBank = want;
+            const juce::String who = juce::String(n->type).fromFirstOccurrenceOf("tp_mmb_", false, false).toUpperCase();
+            if (it->second.getSize() == 0) { errors.addIfNotAlreadyThere(who + ": geen bank " + juce::String(want) + " in de bankmap"); continue; }
+            juce::String error;
+            bool ok;
+            if (lock) { const juce::ScopedLock sl(*lock); ok = applyMmbs(*n->host, it->second.getData(), it->second.getSize(), error); }
+            else ok = applyMmbs(*n->host, it->second.getData(), it->second.getSize(), error);
+            if (!ok) errors.addIfNotAlreadyThere(who + ": " + error);
+        }
+    }
+
     /**
      * Transport van de DAW voor het volgende stuk van @p span motorsamples,
      * dat begint op motorsample @p at: speelt hij, tempo, positie in kwartnoten
@@ -293,6 +334,9 @@ private:
     struct Node {
         enum Kind { Cv, Audio, Mixer, Out } kind = Audio;
         std::unique_ptr<Resampled> rs;   // niet null: andere rate of blokgrootte
+        bool bankNode = false;           // samplebank via de Bank-knop
+        std::atomic<int> wantBank { -1 };   // gevraagd (audiothread schrijft)
+        int loadedBank = -1;                // erin (message-thread)
         std::vector<std::vector<float>> full;   // blok < kBlock: de uitgangen over het hele motorblok
         std::string id, type;
         std::unique_ptr<W2cHost> host;
@@ -323,6 +367,7 @@ private:
             else if (!n.dry.empty()) n.bypTarget = v >= 0.5f ? 1.0f : 0.0f;
             return;
         }
+        if (n.bankNode && control == "bank") n.wantBank = static_cast<int>(std::lround(v));
         if (n.host) { const int c = n.host->controlIndex(control.c_str()); if (c >= 0) n.host->setControl(c, v); return; }
         if (n.kind == Node::Out && control == "level") { n.level = v; return; }
         if (n.kind == Node::Mixer && control.size() >= 4) {
@@ -568,7 +613,7 @@ private:
 
     std::vector<std::unique_ptr<Node>> nodes_;
     std::unordered_map<std::string, Node*> byId_;
-    std::vector<Node*> cvNodes_, audioOrder_, midiNodes_, rhythmNodes_;
+    std::vector<Node*> cvNodes_, audioOrder_, midiNodes_, rhythmNodes_, bankNodes_;
     std::vector<SyncEvent> syncEvents_;
     bool syncPlaying_ = false, syncArmed_ = false;
     double syncNextPpq_ = 0.0, syncBpm_ = 0.0;
