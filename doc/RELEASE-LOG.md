@@ -130,6 +130,18 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB Patch: DX7-editor en CMI-pagina's als tab
+<!-- EN: MMB Patch: the DX7 editor and the CMI pages as tabs; CMI patches play their own waveform -->
+- Een patch met een DX7 of CMI heeft in MMB Patch achter Expert een tab
+  **DX7** of **CMI**, met dezelfde editor als in de MusicBrain-editor. Wat
+  je daar maakt hoor je meteen en gaat mee in het Logic-project (Mark:
+  stap 6 van [plugin-patches.md](plans/plugin-patches.md)).
+- Het schermtoetsenbord van de DX7-editor speelt de plugin zelf.
+- Fout hersteld: een CMI in MMB Patch speelde altijd zijn ingebouwde golf,
+  niet het profiel uit de patch. De patch draagt de tabel nu mee.
+- Gemeten: een DX7-editstem in het project klinkt in plaats van de
+  bankklank, ook na bewaren en opnieuw openen.
+
 ### 2026-11-01 — MMB Patch: banknamen op het paneel
 <!-- EN: MMB Patch: bank names on the sampler/Mellotron/Percuter strips -->
 - Het bankstrookje van sampler, Mellotron (TAPE STRIP) en Percuter toont in

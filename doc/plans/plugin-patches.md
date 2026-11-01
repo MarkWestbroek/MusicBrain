@@ -248,6 +248,30 @@ DX7-editor (met de Roto-bediening) komen als tabblad achter het paneel,
 zoals Binnenkijken in de speelmodus. Ze schrijven een bank (stap 1) en
 controls (via dezelfde route als het paneel).
 
+**Gebouwd in MMB Patch (2026-11-01).** Heeft de patch een DX7 of een CMI,
+dan staan achter Expert de tabs **DX7** en **CMI**: dezelfde
+`Dx7EditorModal` en `CmiPage4` als in de editor, geen eigen variant.
+
+- De editors schrijven zoals altijd naar `WasmModule` (blob, typeknop); in
+  de plugin stuurt `WasmModule.remote` dat door naar `mmbPatchLive`
+  (`GenericPatch.h`), die het in de motor zet (`PatchEngine::setBlob`,
+  `setTypeControl`) en per sleutel onthoudt. Dat gaat als `patchLive` mee
+  in het project en komt na het laden van de patch terug; een andere patch
+  kiezen wist het.
+- De DX7-editor haalt zijn ROMs uit de plugin (`op: 'dx7roms'`); zijn
+  schermtoetsenbord speelt via `mmbNote` de plugin zelf, alsof de noot van
+  de DAW kwam.
+- De CMI-pagina's werken op de store van de editor: zolang de tab open is,
+  staat de patch daarin. Knoppen die ze zetten (een stem uit de bank) gaan
+  naar de parameters; het profiel (`moduleData`) naar de bewaarde UI.
+- Ook zonder tab: de motor-JSON van een patch (`patchPluginConfig.ts`) draagt
+  nu de tabellen van de CMI-stemmen (`blobs`). Voorheen speelde een CMI in
+  MMB Patch altijd zijn ingebouwde golf, niet het profiel uit de patch.
+- Gemeten: een DX7-editstem (STRINGS 3) in de toestand klinkt in plaats van
+  bank 1A/1, en na bewaren en openen sample voor sample gelijk.
+- Nog niet: de losse plugin MMB CMI (native kern zonder tabelingang), en de
+  Roto-Control in de plugin (WebMIDI ontbreekt in de webview van de Mac).
+
 ## 8. Open vragen
 
 - Samplerate: zie §9.

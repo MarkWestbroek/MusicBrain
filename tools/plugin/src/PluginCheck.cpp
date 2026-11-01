@@ -237,6 +237,7 @@ int main(int argc, char** argv) {
         own->setAttribute("patchUi", pv["ui"].toString());
         own->setAttribute("patchName", pv["name"].toString());
         own->setAttribute("patchDefaults", 1);   // slots op de stand van de patch, zoals bij kiezen in het venster
+        if (pv["live"].isArray()) own->setAttribute("patchLive", juce::JSON::toString(pv["live"], true));   // subeditors (DX7-editstem, CMI-tabel)
         juce::MemoryBlock st;
         juce::AudioProcessor::copyXmlToBinary(*own, st);
         comp->deleteAllTextElements();

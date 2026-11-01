@@ -156,6 +156,16 @@ public:
             }
         }
 
+        // Blobs uit de patch (de tabellen van de CMI-stemmen, uit moduleData;
+        // patchPluginConfig.ts): [{ modules: [id…], slot, b64 }].
+        if (auto* bl = root["blobs"].getArray())
+            for (const auto& b : *bl) {
+                juce::MemoryBlock data;
+                if (!decodeBase64(b["b64"].toString(), data)) continue;
+                if (auto* ids = b["modules"].getArray())
+                    for (const auto& id : *ids) setBlob(id.toString().toStdString(), false, static_cast<int>(b["slot"]), data);
+            }
+
         // Knoppen, en het aantal stemmen naar MIDI-IN (applyPatchVoiceCount).
         if (auto* cs = patch["controlState"].getDynamicObject()) {
             for (const auto& kv : cs->getProperties()) {
@@ -200,6 +210,34 @@ public:
     }
 
     bool loaded() const { return loaded_; }
+
+    /** Blob naar slot @p slot van module @p target, of van elke module van type @p target
+     *  (@p isType). Niet tijdens process(): de aanroeper houdt de callback-lock of de
+     *  motor speelt nog niet. Geeft het aantal modules dat hem kreeg. */
+    int setBlob(const std::string& target, bool isType, int slot, const juce::MemoryBlock& data) {
+        int n = 0;
+        const int bytes = static_cast<int>(data.getSize() & ~static_cast<std::size_t>(1));
+        if (bytes < 2) return 0;
+        for (auto& node : nodes_) {
+            if (!node->host || !node->host->hasBlobs() || (isType ? node->type : node->id) != target) continue;
+            int16_t* dst = node->host->blobPtr(slot, bytes);
+            if (!dst) continue;
+            std::memcpy(dst, data.getData(), static_cast<std::size_t>(bytes));
+            node->host->blobCommit(slot, bytes / 2, 44100.0f, 1);
+            ++n;
+        }
+        return n;
+    }
+    /** Knop @p control op elke module van type @p type (DX7 `edit`). */
+    void setTypeControl(const std::string& type, const std::string& control, float v) {
+        for (auto& node : nodes_) if (node->type == type) setControl(*node, control, v);
+    }
+    /** Standaard-base64 (de UI maakt het met btoa). */
+    static bool decodeBase64(const juce::String& b64, juce::MemoryBlock& out) {
+        out.reset();
+        juce::MemoryOutputStream os(out, false);
+        return juce::Base64::convertFromBase64(os, b64) && (os.flush(), out.getSize() > 0);
+    }
 
     /** Zet knop @p control van module @p moduleId. */
     void setControl(const std::string& moduleId, const std::string& control, float v) {

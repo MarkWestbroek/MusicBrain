@@ -143,6 +143,9 @@ Testen zonder venster: `npx tsx scripts/patchConfigDump.ts "<label>" p.json`
 in `editor/`, dan `MmbPluginCheck "MMB Patch.vst3" uit.wav 3 notes=48,60,64
 patchstate=p.json`. Verder: `savestate=`/`loadstate=` (een project bewaren
 en openen), en `editor=8 loadstate=...` opent het venster met die patch.
+Een `"live": [...]` in p.json komt als `patchLive` in de toestand: wat de
+subeditors zetten (`{ op: 'blob', target, type, slot, b64 }`,
+`{ op: 'ctl', target, id, v }`), zoals een project het bewaart.
 
 ## Testen
 

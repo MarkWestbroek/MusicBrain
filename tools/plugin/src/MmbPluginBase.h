@@ -28,6 +28,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <cstdio>
@@ -151,8 +152,18 @@ public:
     /** Bediening van MMB Patch: de patch van nu, en een andere laden. */
     virtual juce::var patchGet() const { return {}; }
     virtual juce::var patchLoad(const juce::String& /*config*/, const juce::String& /*ui*/, const juce::String& /*name*/) { return {}; }
+    /** Subeditors (DX7, CMI) tijdens het spelen: een blob, een typeknop of de bijgewerkte
+     *  patch-UI; { op: 'blob' | 'ctl' | 'ui' | 'dx7roms', … }. Zie GenericPatch.h. */
+    virtual juce::var patchLive(const juce::var& /*msg*/) { return {}; }
     /** Alle parameters opnieuw doorgeven bij het volgende blok (na een nieuwe patch). */
     void requestRepush() { repush_ = true; }
+    /** Een noot van het schermtoetsenbord (subeditors): gaat bij het volgende blok
+     *  de MIDI in, alsof hij van de DAW kwam. Niet vanaf de audiothread aanroepen. */
+    void injectNote(int note, int velocity) {
+        int a, an, b, bn;
+        noteFifo_.prepareToWrite(1, a, an, b, bn);
+        if (an > 0) { noteBuf_[static_cast<std::size_t>(a)] = ((note & 127) << 8) | (velocity & 127); noteFifo_.finishedWrite(1); }
+    }
 
     // ── Bank: toestand voor het paneel ───────────────────────────────────
     struct BankInfo { juce::String name, error; bool own = false; int knob = -1; juce::String note; bool loading = false; };
@@ -225,6 +236,13 @@ public:
     void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override {
         juce::ScopedNoDenormals noDenormals;
         pushParameters();
+        int a, an, b, bn;
+        noteFifo_.prepareToRead(noteFifo_.getNumReady(), a, an, b, bn);
+        for (int i = 0; i < an + bn; ++i) {
+            const int v = noteBuf_[static_cast<std::size_t>(i < an ? a + i : b + i - an)];
+            midi.addEvent(v & 127 ? juce::MidiMessage::noteOn(1, v >> 8, static_cast<juce::uint8>(v & 127)) : juce::MidiMessage::noteOff(1, v >> 8), 0);
+        }
+        noteFifo_.finishedRead(an + bn);
         render(buffer, midi);
     }
     juce::AudioProcessorEditor* createEditor() override;
@@ -528,6 +546,8 @@ private:
     juce::ThreadPool bankPool_ { 1 };    // laadt banken buiten de message-thread
     std::atomic<int> bankKnob_ { -1 };   // gevraagd door de audiothread
     std::atomic<bool> repush_ { false };  // requestRepush()
+    juce::AbstractFifo noteFifo_ { 64 };    // injectNote()
+    std::array<int, 64> noteBuf_ {};
 };
 
 // ── De bediening: het editorpaneel in een webview ────────────────────────
@@ -611,6 +631,13 @@ public:
             })
             .withNativeFunction("mmbPatchLoad", [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
                 complete(args.size() >= 3 ? mmb_.patchLoad(args[0].toString(), args[1].toString(), args[2].toString()) : juce::var());
+            })
+            .withNativeFunction("mmbNote", [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                if (args.size() >= 2) mmb_.injectNote(static_cast<int>(args[0]), static_cast<int>(args[1]));
+                complete({});
+            })
+            .withNativeFunction("mmbPatchLive", [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                complete(args.size() >= 1 ? mmb_.patchLive(args[0]) : juce::var());
             })
             .withNativeFunction("mmbPatchChoose", [this](const juce::Array<juce::var>&, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
                 chooser_ = std::make_unique<juce::FileChooser>("Patch of project kiezen", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory), "*.json");

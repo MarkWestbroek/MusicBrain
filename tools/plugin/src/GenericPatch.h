@@ -174,7 +174,36 @@ public:
         if (i <= 0 || i > static_cast<int>(presets().size()) || i == program_) return;
         const Preset& p = presets()[static_cast<std::size_t>(i - 1)];
         juce::String error;
+        clearLive();
         if (load(p.config, {}, p.label, true, error, p.id)) program_ = i;
+    }
+
+    /** Wat de subeditors tijdens het spelen zetten (DX7-editstem, CMI-tabel). Gaat mee in
+     *  het project en komt na het laden van de patch terug; een andere patch wist het. */
+    juce::var patchLive(const juce::var& msg) override {
+        const juce::String op = msg["op"].toString();
+        if (op == "dx7roms") {
+#ifdef MMB_HAVE_DX7_ROMS
+            juce::MemoryBlock all;
+            for (int b = 0; b < kDx7RomBanks; ++b) all.append(kDx7Roms[b], 4096);
+            return juce::Base64::toBase64(all.getData(), all.getSize());
+#else
+            return {};
+#endif
+        }
+        if (op == "ui") {
+            const juce::ScopedLock sl(lock_);
+            ui_ = msg["ui"].toString();
+            return true;
+        }
+        if (op != "blob" && op != "ctl") return {};
+        {
+            const juce::ScopedLock sl(lock_);
+            live_[liveKey(msg)] = msg;
+        }
+        const juce::ScopedLock cl(getCallbackLock());
+        if (PatchEngine* e = host().engine()) applyLive(*e, msg);
+        return true;
     }
 
     juce::var patchGet() const override {
@@ -189,6 +218,7 @@ public:
     }
     juce::var patchLoad(const juce::String& config, const juce::String& ui, const juce::String& name) override {
         juce::String error;
+        clearLive();
         const bool ok = load(config, ui, name, true, error, {});
         if (ok) program_ = 0;
         auto* o = new juce::DynamicObject();
@@ -206,11 +236,19 @@ public:
         t.setProperty("patchName", name_, nullptr);
         t.setProperty("patchCatalog", catalogId_, nullptr);
         t.setProperty("patchProgram", program_, nullptr);
+        if (!live_.empty()) t.setProperty("patchLive", liveJson(), nullptr);
     }
     void restoredState(const juce::ValueTree& t) override {
         const juce::String config = t.getProperty("patchConfig").toString();
         if (config.isEmpty()) return;
         juce::String error;
+        {
+            const juce::ScopedLock sl(lock_);
+            live_.clear();
+            const juce::var saved = juce::JSON::parse(t.getProperty("patchLive").toString());   // benoemd: getArray() wijst erin
+            if (auto* arr = saved.getArray())
+                for (const auto& m : *arr) live_[liveKey(m)] = m;
+        }
         // De parameters staan al goed (uit de toestand): niet op de beginstand
         // zetten, behalve als de toestand daarom vraagt (MmbPluginCheck patchstate=).
         load(config, t.getProperty("patchUi").toString(), t.getProperty("patchName").toString(), static_cast<bool>(t.getProperty("patchDefaults", false)), error,
@@ -261,6 +299,10 @@ private:
         }
         auto engine = std::make_unique<PatchEngine>();
         if (!engine->load(root["json"].toString(), [](const std::string& t) { return genericModule(t); }, error)) return fail(error);
+        {
+            const juce::ScopedLock sl(lock_);
+            for (const auto& kv : live_) applyLive(*engine, kv.second);
+        }
         // Samplebanken uit de bankmap (de motor speelt nog niet: zonder lock).
         juce::StringArray notes;
         engine->loadBanks(readBank, nullptr, notes);
@@ -311,6 +353,25 @@ private:
         if (!notes.isEmpty()) warning_ = notes.joinIntoString("; ");
     }
 
+    static juce::String liveKey(const juce::var& m) {
+        return m["op"].toString() + ":" + m["target"].toString() + ":" + (m["op"].toString() == "ctl" ? m["id"].toString() : m["slot"].toString())
+            + (static_cast<bool>(m["type"]) ? ":t" : "");
+    }
+    static void applyLive(PatchEngine& e, const juce::var& m) {
+        const std::string target = m["target"].toString().toStdString();
+        if (m["op"].toString() == "ctl") { e.setTypeControl(target, m["id"].toString().toStdString(), static_cast<float>(static_cast<double>(m["v"]))); return; }
+        juce::MemoryBlock data;
+        if (PatchEngine::decodeBase64(m["b64"].toString(), data)) {
+            e.setBlob(target, static_cast<bool>(m["type"]), static_cast<int>(m["slot"]), data);
+        }
+    }
+    void clearLive() { const juce::ScopedLock sl(lock_); live_.clear(); }
+    juce::String liveJson() const {
+        juce::Array<juce::var> arr;
+        for (const auto& kv : live_) arr.add(kv.second);
+        return juce::JSON::toString(juce::var(arr), true);
+    }
+
     bool fail(const juce::String& e) {
         const juce::ScopedLock sl(lock_);
         error_ = e;
@@ -322,6 +383,7 @@ private:
     juce::CriticalSection lock_;
     std::vector<PatchSlot> slots_;   // voor namen en tekst in de DAW (de gastheer heeft een eigen kopie)
     juce::String config_, ui_, name_, error_, warning_, catalogId_;
+    std::map<juce::String, juce::var> live_;   // patchLive: sleutel → laatste bericht
     int program_ = 0;
 };
 

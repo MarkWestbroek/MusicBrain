@@ -11,6 +11,7 @@
 // (dezelfde formules als juce::NormalisableRange in GenericPatch.h).
 
 import { bypassRoute } from './bypassRoute';
+import { cmiVoices, tableFor } from './cmiSync';
 import { pluginParams } from './patchPlugins';
 import { polyControlTargets } from './polyExpand';
 import { buildConfigPayload } from './teensyLink';
@@ -97,7 +98,10 @@ export interface PatchPluginConfig {
 export function patchPluginConfig(project: ModularProject, patch: Patch): PatchPluginConfig {
   const active = project.activePatchId === patch.id ? project : { ...project, activePatchId: patch.id };
   const payload = buildConfigPayload(active, { activeOnly: true });
-  const config = JSON.parse(payload.json) as { project: { modules: { id: string; typeId: string }[] }; bypass?: Record<string, unknown> };
+  const config = JSON.parse(payload.json) as {
+    project: { modules: { id: string; typeId: string }[] }; bypass?: Record<string, unknown>;
+    blobs?: { modules: string[]; slot: number; b64: string }[];
+  };
   const bypass: Record<string, unknown> = {};
   for (const t of new Set(config.project.modules.map((m) => m.typeId))) {
     const type = project.moduleTypes.find((x) => x.id === t);
@@ -105,6 +109,13 @@ export function patchPluginConfig(project: ModularProject, patch: Patch): PatchP
     if (route) bypass[t] = 'own' in route ? { own: true } : route.pairs.map((x) => (x.fallback ? [x.out, x.in, x.fallback] : [x.out, x.in]));
   }
   config.bypass = bypass;
+  // CMI-stemmen: hun golftabel (uit moduleData, anders het ingebouwde profiel), zoals
+  // de simulator en de Teensy hem krijgen (cmiSync.ts). Eén blob per eigenaar.
+  const byOwner = new Map<string, string[]>();
+  for (const v of cmiVoices(active, patch)) byOwner.set(v.owner, [...(byOwner.get(v.owner) ?? []), v.id]);
+  if (byOwner.size) {
+    config.blobs = [...byOwner].map(([owner, modules]) => ({ modules, slot: 0, b64: int16ToBase64(tableFor(patch, owner)) }));
+  }
   const slots: PatchSlot[] = [];
   for (const it of pluginParams(project, patch)) {
     const spec = slotSpec(it.control, patch.controlState[it.moduleId]?.[it.controlId]);
@@ -136,4 +147,12 @@ export function slimProject(project: ModularProject, patch: Patch): ModularProje
     activePatchId: patch.id,
     activeRackId: racks[0]?.id ?? project.activeRackId,
   };
+}
+
+/** Int16 (little-endian, zoals de wasm-blob) → standaard-base64 (PatchEngine::decodeBase64). */
+export function int16ToBase64(data: Int16Array): string {
+  const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
 }

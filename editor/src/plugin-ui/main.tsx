@@ -21,12 +21,19 @@ import {
   PATCH_PLUGINS, TAB_BAR_MM, expertModules, patchPluginTypeId, pluginFronts, pluginPanelSize, pluginParams,
   type ExpertModule, type PluginParam,
 } from '../modular-mb/patchPlugins';
-import { PATCH_SLOTS, fromSlot, patchPluginConfig, slimProject, slotSpec, toSlot } from '../modular-mb/patchPluginConfig';
+import { PATCH_SLOTS, fromSlot, int16ToBase64, patchPluginConfig, slimProject, slotSpec, toSlot } from '../modular-mb/patchPluginConfig';
+import { CmiPage4 } from '../modular-mb/CmiPage4';
+import { cmiVoices } from '../modular-mb/cmiSync';
+import { Dx7EditorModal } from '../modular-mb/Dx7EditorModal';
+import { WasmModule } from '../modular-mb/runtime';
+import { setDx7RomSource } from '../modular-mb/runtime/audio/dx7Host';
+import { getEngine } from '../modular-mb/sim/engineSingleton';
+import { getProject, setProject, subscribe } from '../modular-mb/store';
 import { seedInternals } from '../modular-mb/seedModules';
 import { setHostBank, setHostBankList } from '../modular-mb/sim/bankAutoLoad';
 import { emptyModularProject, type Control, type ControlValue, type ModularProject, type Patch } from '../modular-mb/types';
 import {
-  attach, bankList, chooseBank, choosePatchFile, clearBank, inPlugin, log, patchGet, patchLoad, resizeTo, watchBank, watchPatch, watchPatchFile,
+  attach, bankList, chooseBank, choosePatchFile, clearBank, inPlugin, log, noteToPlugin, patchGet, patchLive, patchLoad, resizeTo, watchBank, watchPatch, watchPatchFile,
   type BankInfo, type Handle, type Kind, type PatchState,
 } from './juceBridge';
 
@@ -332,14 +339,47 @@ function PatchView({ built, slots, topPx }: { built: PatchViewData; slots: boole
   }, [built, slots]);
 
   const { project, fronts, params, expert, size } = built;
-  const patch = { ...built.patch, controlState: state };
+  // Subeditors (alleen MMB Patch, slots): de DX7-editor en de CMI-pagina's, als tab achter Expert.
+  const [moduleData, setModuleData] = useState(built.patch.moduleData);
+  const hasDx7 = slots && project.modules.some((m) => m.typeId === 'tp_mmb_dx7');
+  const cmi = useMemo(() => (slots ? cmiVoices(project, built.patch) : []), [slots, project, built.patch]);
+  const extra = [...(hasDx7 ? ['DX7'] : []), ...(cmi.length ? ['CMI'] : [])];
+  const sub = tab > fronts.length ? extra[tab - fronts.length - 1] : undefined;
+  const lastTab = useRef(0);
+  if (!sub && tab !== lastTab.current) lastTab.current = tab;
+  const patch = { ...built.patch, controlState: state, moduleData };
   // Eén schrijfpad: stand bijwerken en de parameter zetten (de motor doet de stemmen).
   const change = (p: PluginParam, v: ControlValue) => {
     setState((s) => ({ ...s, [p.moduleId]: { ...s[p.moduleId], [p.controlId]: v } }));
     if (typeof v === 'number' || typeof v === 'boolean') handles.current[p.id]?.set(v);
   };
   const paramOf = (moduleId: string, controlId: string) => params.find((p) => p.moduleId === moduleId && p.controlId === controlId);
-  const names = [...fronts.map((f) => f.name), 'Expert'];
+  // CMI: de pagina's werken op de store van de editor. Zolang ze open zijn staat
+  // deze patch daarin; wat ze schrijven gaat naar de parameters (knoppen) en
+  // naar de bewaarde UI (moduleData: het profiel). De tabellen zelf stuurt
+  // CmiPage4 via WasmModule.remote naar de motor.
+  const latest = useRef({ state, moduleData, change, paramOf });
+  latest.current = { state, moduleData, change, paramOf };
+  useEffect(() => {
+    if (sub !== 'CMI') return;
+    const now = latest.current;
+    setProject({ ...project, patches: [{ ...built.patch, controlState: now.state, moduleData: now.moduleData }], activePatchId: built.patch.id });
+    let prev = getProject().patches[0]!;
+    return subscribe(() => {
+      const p = getProject().patches.find((x) => x.id === built.patch.id);
+      if (!p || p === prev) return;
+      if (p.moduleData !== prev.moduleData) {
+        setModuleData(p.moduleData);
+        void patchLive({ op: 'ui', ui: JSON.stringify({ ...project, patches: [{ ...built.patch, moduleData: p.moduleData }] }) });
+      }
+      if (p.controlState !== prev.controlState)
+        for (const [mid, ctl] of Object.entries(p.controlState))
+          for (const [cid, v] of Object.entries(ctl ?? {}))
+            if (prev.controlState[mid]?.[cid] !== v) { const q = latest.current.paramOf(mid, cid); if (q) latest.current.change(q, v); }
+      prev = p;
+    });
+  }, [sub, project, built.patch]);
+  const names = [...fronts.map((f) => f.name), 'Expert', ...extra];
   const onExpert = tab >= fronts.length || !fronts.length;
   const front = onExpert ? undefined : fronts[tab];
   const fm = front ? buildFrontModule(front, patch, project) : undefined;
@@ -387,9 +427,32 @@ function PatchView({ built, slots, topPx }: { built: PatchViewData; slots: boole
       </div>
       )}
       <Readout readout={readout} pxPerMm={pxPerMm} bottom={pxPerMm * 6} />
+      {sub === 'DX7' && <Dx7EditorModal open onClose={() => setTab(lastTab.current)} />}
+      {sub === 'CMI' && cmi.length > 0 && (
+        <CmiPage4 patchId={built.patch.id} owner={cmi[0]!.owner} voices={cmi.map((v) => v.id)} onClose={() => setTab(lastTab.current)} />
+      )}
       {inPlugin && <ResizeGrip size={Math.max(14, pxPerMm * 4)} />}
     </div>
   );
+}
+
+/** In MMB Patch spelen de subeditors op de motor van de plugin: blobs en
+ *  typeknoppen (WasmModule.remote), de DX7-ROMs uit de plugin, en het
+ *  schermtoetsenbord als MIDI de plugin in. Eén keer, bij het starten. */
+function routeSubeditorsToPlugin(): void {
+  if (!inPlugin) return;
+  WasmModule.remote = {
+    blob: (target, type, slot, data) => { void patchLive({ op: 'blob', target, type, slot, b64: int16ToBase64(data) }); },
+    ctl: (target, id, v) => { void patchLive({ op: 'ctl', target, id, v }); },
+  };
+  setDx7RomSource(async () => {
+    const b64 = await patchLive({ op: 'dx7roms' });
+    if (typeof b64 !== 'string' || !b64) throw new Error('deze plugin heeft geen DX7-banken');
+    return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  });
+  const engine = getEngine();
+  engine.noteOn = (midi: number, velocity = 0.9) => noteToPlugin(midi, Math.max(1, Math.min(127, Math.round(velocity * 127))));
+  engine.noteOff = (midi: number) => noteToPlugin(midi, 0);
 }
 
 /** De CR-78 Kit (Cr78KitPlugin.cpp): per klank een rij schuiven, met zijn noot. */
@@ -440,6 +503,7 @@ const PICK_MENUS: [CatalogEntry['menu'], string][] = [['basisset', 'Basisset'], 
 /** MMB Patch: kies een patch (catalogus of projectbestand); de plugin speelt hem. */
 function GenericPatchApp() {
   const base = useMemo(() => seedInternals(emptyModularProject()), []);
+  useEffect(routeSubeditorsToPlugin, []);
   const [cur, setCur] = useState<{ view: PatchViewData; name: string; n: number } | null>(null);
   const [msg, setMsg] = useState<{ text: string; warn: boolean } | null>(null);
   const [pick, setPick] = useState('');

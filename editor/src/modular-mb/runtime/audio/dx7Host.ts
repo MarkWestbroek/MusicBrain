@@ -22,6 +22,9 @@ let romsPromise: Promise<Uint8Array> | null = null;
 let roms: Uint8Array | null = null;
 let editPatch: Uint8Array | null = null;
 let lastError: string | null = null;
+/** Waar de ROMs vandaan komen; in een plugin uit de plugin zelf (setDx7RomSource). */
+let romSource: (() => Promise<Uint8Array>) | null = null;
+export function setDx7RomSource(src: () => Promise<Uint8Array>): void { romSource = src; romsPromise = null; }
 
 /** Bytes → Int16Array-kopie (de blob-weg vervoert int16; lengte moet even zijn). */
 function asInt16(bytes: Uint8Array): Int16Array {
@@ -35,9 +38,13 @@ export function ensureDx7Roms(): Promise<Uint8Array> {
   if (!romsPromise) {
     const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
     romsPromise = (async () => {
-      const res = await fetch(`${base}dx7/roms.bin`);
-      if (!res.ok) throw new Error('dx7/roms.bin niet gevonden');
-      const data = new Uint8Array(await res.arrayBuffer());
+      let data: Uint8Array;
+      if (romSource) data = await romSource();
+      else {
+        const res = await fetch(`${base}dx7/roms.bin`);
+        if (!res.ok) throw new Error('dx7/roms.bin niet gevonden');
+        data = new Uint8Array(await res.arrayBuffer());
+      }
       for (let b = 0; b < 8; b++) {
         WasmModule.setBlob(TYPE_ID, b, asInt16(data.subarray(b * BANK_BYTES, (b + 1) * BANK_BYTES)), 44100, `ROM ${b}`, 1);
       }

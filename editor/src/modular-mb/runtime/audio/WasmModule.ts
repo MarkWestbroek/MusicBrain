@@ -83,7 +83,15 @@ export class WasmModule extends AudioModule {
    * Onthouden voor instanties die later komen.
    */
   private static readonly typeControls = new Map<string, Map<string, number>>();
+  /** In een plugin (MMB Patch) speelt de motor van de plugin, niet deze
+   *  worklet: blobs en typeknoppen van de subeditors (DX7, CMI) gaan dan ook
+   *  daarheen. Namen die met "ROM" beginnen niet: die heeft de plugin zelf. */
+  static remote: {
+    blob(target: string, isType: boolean, slot: number, data: Int16Array): void;
+    ctl(typeId: string, id: string, v: number): void;
+  } | null = null;
   static broadcastControl(typeId: string, id: string, v: number): void {
+    WasmModule.remote?.ctl(typeId, id, v);
     let m = WasmModule.typeControls.get(typeId);
     if (!m) { m = new Map(); WasmModule.typeControls.set(typeId, m); }
     m.set(id, v);
@@ -122,6 +130,7 @@ export class WasmModule extends AudioModule {
     typeId: string, slot: number, data: Int16Array, rate: number,
     name = '', channels = 1,
   ): void {
+    if (!name.startsWith('ROM')) WasmModule.remote?.blob(typeId, true, slot, data);
     let m = WasmModule.blobs.get(typeId);
     if (!m) { m = new Map(); WasmModule.blobs.set(typeId, m); }
     m.set(slot, { data, rate, name, channels });
@@ -130,6 +139,7 @@ export class WasmModule extends AudioModule {
   }
   /** Blob naar slot `slot` van één module (op id), nu en na een herbouw. */
   static setInstanceBlob(moduleId: string, slot: number, data: Int16Array, rate = 44100): void {
+    WasmModule.remote?.blob(moduleId, false, slot, data);
     let m = WasmModule.instanceBlobs.get(moduleId);
     if (!m) { m = new Map(); WasmModule.instanceBlobs.set(moduleId, m); }
     m.set(slot, { data, rate, name: '', channels: 1 });

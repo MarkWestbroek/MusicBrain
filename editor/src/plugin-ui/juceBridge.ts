@@ -53,6 +53,18 @@ export async function patchLoad(config: string, ui: string, name: string): Promi
   const r = await (getNativeFunction('mmbPatchLoad')(config, ui, name) as Promise<{ ok: boolean; error: string; warning?: string } | undefined>);
   return r ?? { ok: false, error: 'geen antwoord van de plugin' };
 }
+/** Subeditors in MMB Patch: blob, typeknop of bijgewerkte UI naar de motor (GenericPatch.h patchLive). */
+export type PatchLive =
+  | { op: 'blob'; target: string; type: boolean; slot: number; b64: string }
+  | { op: 'ctl'; target: string; id: string; v: number }
+  | { op: 'ui'; ui: string }
+  | { op: 'dx7roms' };
+export async function patchLive(msg: PatchLive): Promise<unknown> {
+  if (!inPlugin) return undefined;
+  return getNativeFunction('mmbPatchLive')(msg) as Promise<unknown>;
+}
+/** Een noot naar de plugin, alsof hij van de DAW kwam (schermtoetsenbord van de subeditors). */
+export const noteToPlugin = (note: number, velocity: number): void => { if (inPlugin) void getNativeFunction('mmbNote')(note, velocity); };
 /** Een andere patch in de plugin (presetmenu van de DAW, of een project dat opent). */
 export function watchPatch(onPatch: (p: PatchState) => void): () => void {
   if (!inPlugin) return () => {};
