@@ -16,10 +16,17 @@
 #include "MmbPluginBase.h"
 #include "NoteMap.h"
 
+#include <cstdint>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace mmb_plugin {
+
+/** Heeft de kern een golftabel (setTable, de CMI)? Dan neemt de plugin er een aan van de bediening. */
+template <class X, class = void> struct HasTable : std::false_type {};
+template <class X> struct HasTable<X, std::void_t<decltype(std::declval<X&>().setTable(static_cast<const int16_t*>(nullptr), 0))>> : std::true_type {};
 
 template <class K>
 class KernelProcessor final : public MmbProcessor {
@@ -40,6 +47,7 @@ public:
         for (auto& k : kernels_) {
             k.Init(static_cast<float>(sampleRate));
             for (int c = 0; c < K::kCvIn; ++c) k.setCv(c, 0.0f);
+            if constexpr (HasTable<T>::value) { if (!table_.empty()) k.setTable(table_.data(), static_cast<int>(table_.size())); }   // Init zet de ingebouwde
         }
         in_.setSize(2, maxBlock);
         spare_.setSize(kOuts, maxBlock);
@@ -102,7 +110,46 @@ public:
         }
     }
 
+    // ── Golftabel (CMI): van de bediening (CmiPage4 via mmbPatchLive), bewaard in het project ──
+    juce::var patchLive(const juce::var& msg) override {
+        if constexpr (!HasTable<T>::value) return {};
+        else {
+            const juce::String op = msg["op"].toString();
+            if (op == "get") { auto* o = new juce::DynamicObject(); o->setProperty("ui", ui_); return juce::var(o); }
+            if (op == "ui") { ui_ = msg["ui"].toString(); return true; }
+            if (op != "blob" || static_cast<int>(msg["slot"]) != 0) return {};
+            std::vector<int16_t> t;
+            if (!decode(msg["b64"].toString(), t)) return false;
+            const juce::ScopedLock cl(getCallbackLock());
+            table_ = std::move(t);
+            for (auto& k : kernels_) k.setTable(table_.data(), static_cast<int>(table_.size()));
+            return true;
+        }
+    }
+    void addToState(juce::ValueTree& tree) const override {
+        if (table_.empty()) return;
+        tree.setProperty("kernelTable", juce::Base64::toBase64(table_.data(), table_.size() * sizeof(int16_t)), nullptr);
+        tree.setProperty("kernelUi", ui_, nullptr);
+    }
+    void restoredState(const juce::ValueTree& tree) override {
+        if constexpr (HasTable<T>::value) {
+            std::vector<int16_t> t;
+            ui_ = tree.getProperty("kernelUi").toString();
+            if (!decode(tree.getProperty("kernelTable").toString(), t)) return;
+            const juce::ScopedLock cl(getCallbackLock());
+            table_ = std::move(t);
+            for (auto& k : kernels_) k.setTable(table_.data(), static_cast<int>(table_.size()));
+        }
+    }
+
 private:
+    static bool decode(const juce::String& b64, std::vector<int16_t>& out) {
+        juce::MemoryOutputStream os;
+        if (b64.isEmpty() || !juce::Base64::convertFromBase64(os, b64) || os.getDataSize() < 4) return false;
+        out.assign(os.getDataSize() / 2, 0);
+        std::memcpy(out.data(), os.getData(), out.size() * sizeof(int16_t));
+        return true;
+    }
     static int cvIndex(const std::string& name) {
         for (int c = 0; c < K::kCvIn; ++c) if (name == K::kCvNames[c]) return c;
         return -1;
@@ -148,6 +195,8 @@ private:
     }
 
     T kernels_[kInstances];
+    std::vector<int16_t> table_;   // golftabel (HasTable), leeg = de ingebouwde
+    juce::String ui_;              // wat de bediening erbij bewaart (het CMI-profiel)
     juce::AudioBuffer<float> in_, spare_;
     std::vector<float> cvValue_;
     NoteMap notes_;

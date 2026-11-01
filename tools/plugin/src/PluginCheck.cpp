@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("sc=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") || arg.startsWith("savestate=") || arg.startsWith("loadstate=") || arg.startsWith("patchstate=") || arg.startsWith("transport=") ||
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("sc=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") || arg.startsWith("savestate=") || arg.startsWith("loadstate=") || arg.startsWith("patchstate=") || arg.startsWith("attr=") || arg.startsWith("transport=") ||
             arg.startsWith("press=") || arg.startsWith("cc=") || arg.startsWith("at=") || arg.startsWith("seq=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
@@ -216,6 +216,31 @@ int main(int argc, char** argv) {
         if (auto* c = xb ? xb->getChildByName("IComponent") : nullptr) backInner.fromBase64Encoding(c->getAllSubText());
         std::printf("eigen bank %s (%zu bytes); toestand van de plugin terug: %zu bytes%s\n", f.getFileName().toRawUTF8(), bank.getSize(),
                     backInner.getSize(), backInner.getSize() > 4 && std::memcmp(backInner.getData(), "MMBP", 4) == 0 ? " (MMBP)" : "");
+    }
+    // attr=<naam>:<bestand>: een eigenschap in de toestand van de plugin, zoals een
+    // project hem bewaart (MMB CMI: kernelTable = de golftabel als base64).
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("attr=")) continue;
+        const juce::String name = arg.fromFirstOccurrenceOf("=", false, false).upToFirstOccurrenceOf(":", false, false);
+        const juce::String text = juce::File(arg.fromFirstOccurrenceOf(":", false, false)).loadFileAsString().trim();
+        juce::MemoryBlock host;
+        plugin->getStateInformation(host);
+        auto xml = juce::AudioProcessor::getXmlFromBinary(host.getData(), static_cast<int>(host.getSize()));
+        auto* comp = xml ? xml->getChildByName("IComponent") : nullptr;
+        juce::MemoryBlock inner;
+        if (!comp || !inner.fromBase64Encoding(comp->getAllSubText())) { std::fprintf(stderr, "attr: geen VST3-toestand\n"); return 1; }
+        auto own = juce::AudioProcessor::getXmlFromBinary(inner.getData(), static_cast<int>(inner.getSize()));
+        if (!own) { std::fprintf(stderr, "attr: toestand van de plugin onleesbaar\n"); return 1; }
+        own->setAttribute(name, text);
+        juce::MemoryBlock st;
+        juce::AudioProcessor::copyXmlToBinary(*own, st);
+        comp->deleteAllTextElements();
+        comp->addTextElement(st.toBase64Encoding());
+        juce::MemoryBlock wrapped;
+        juce::AudioProcessor::copyXmlToBinary(*xml, wrapped);
+        plugin->setStateInformation(wrapped.getData(), static_cast<int>(wrapped.getSize()));
+        std::printf("toestand: %s (%d tekens)\n", name.toRawUTF8(), text.length());
     }
     // patchstate=<bestand>: MMB Patch met een patch, zoals een project hem
     // bewaart (GenericPatch.h). Het bestand komt van

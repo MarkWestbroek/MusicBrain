@@ -146,6 +146,8 @@ en openen), en `editor=8 loadstate=...` opent het venster met die patch.
 Een `"live": [...]` in p.json komt als `patchLive` in de toestand: wat de
 subeditors zetten (`{ op: 'blob', target, type, slot, b64 }`,
 `{ op: 'ctl', target, id, v }`), zoals een project het bewaart.
+Voor elke plugin: `attr=<naam>:<bestand>` zet een eigenschap in de
+toestand (MMB CMI: `kernelTable`, de golftabel als base64).
 
 ## Testen
 

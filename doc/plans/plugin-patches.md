@@ -269,8 +269,14 @@ dan staan achter Expert de tabs **DX7** en **CMI**: dezelfde
   MMB Patch altijd zijn ingebouwde golf, niet het profiel uit de patch.
 - Gemeten: een DX7-editstem (STRINGS 3) in de toestand klinkt in plaats van
   bank 1A/1, en na bewaren en openen sample voor sample gelijk.
-- Nog niet: de losse plugin MMB CMI (native kern zonder tabelingang), en de
-  Roto-Control in de plugin (WebMIDI ontbreekt in de webview van de Mac).
+- De losse plugin **MMB CMI** heeft rechtsboven een knop **Page 4**: dezelfde
+  `CmiPage4`. De native kern krijgt de tabel via `mmbPatchLive` (elke kern
+  met `setTable`, `KernelPlugin.h`); tabel (`kernelTable`) en profiel
+  (`kernelUi`) gaan mee in het project. Gemeten: een tabel in de toestand
+  klinkt, en na bewaren en openen sample voor sample gelijk.
+- Nog niet: de Roto-Control vanuit de plugin zelf (WebMIDI ontbreekt in de
+  webview van de Mac). Via Logic kan het wel (control surface, sinds
+  januari 2026): daarvoor de DX7-plugin met echte parameters (zie hieronder).
 
 ## 8. Open vragen
 

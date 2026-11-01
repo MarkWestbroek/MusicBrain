@@ -58,7 +58,8 @@ export type PatchLive =
   | { op: 'blob'; target: string; type: boolean; slot: number; b64: string }
   | { op: 'ctl'; target: string; id: string; v: number }
   | { op: 'ui'; ui: string }
-  | { op: 'dx7roms' };
+  | { op: 'dx7roms' }
+  | { op: 'get' };
 export async function patchLive(msg: PatchLive): Promise<unknown> {
   if (!inPlugin) return undefined;
   return getNativeFunction('mmbPatchLive')(msg) as Promise<unknown>;

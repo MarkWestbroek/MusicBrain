@@ -162,7 +162,55 @@ function App({ typeId }: { typeId: string }) {
       </div>
     )}
     <BankBar pxPerMm={pxPerMm} />
+    {typeId === 'tp_mmb_cmi' && inPlugin && (
+      <CmiPageButton project={base} moduleId={mod.id} state={state} pxPerMm={pxPerMm}
+        onControl={(id, v) => { setState((s) => ({ ...s, [id]: v })); if (typeof v === 'number' || typeof v === 'boolean') handles.current[id]?.set(v); }} />
+    )}
     {inPlugin && <ResizeGrip size={Math.max(14, pxPerMm * 4)} />}
+    </>
+  );
+}
+
+/** MMB CMI: de CMI-pagina's van de editor (Page 4: harmonischen tekenen, bank,
+ *  uit een sample). De tabel gaat via WasmModule.remote naar de kern
+ *  (KernelPlugin.h), het profiel bewaart de plugin in het project. */
+function CmiPageButton({ project, moduleId, state, pxPerMm, onControl }: {
+  project: ModularProject; moduleId: string; state: Record<string, ControlValue>; pxPerMm: number;
+  onControl: (id: string, v: ControlValue) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const saved = useRef<string>('');
+  useEffect(() => {
+    routeSubeditorsToPlugin();
+    void patchLive({ op: 'get' }).then((r) => { saved.current = (r as { ui?: string } | undefined)?.ui ?? ''; });
+  }, []);
+  const latest = useRef({ state, onControl });
+  latest.current = { state, onControl };
+  const patchId = activePatch(project).id;
+  useEffect(() => {
+    if (!open) return;
+    const patch = activePatch(project);
+    setProject({ ...project, patches: [{ ...patch, controlState: { [moduleId]: latest.current.state },
+      moduleData: saved.current ? { [moduleId]: { cmi: saved.current } } : {} }], activePatchId: patch.id });
+    let prev = getProject().patches[0]!;
+    return subscribe(() => {
+      const p = getProject().patches[0];
+      if (!p || p === prev) return;
+      const cmi = p.moduleData?.[moduleId]?.cmi;
+      if (typeof cmi === 'string' && cmi !== saved.current) { saved.current = cmi; void patchLive({ op: 'ui', ui: cmi }); }
+      for (const [cid, v] of Object.entries(p.controlState[moduleId] ?? {}))
+        if (prev.controlState[moduleId]?.[cid] !== v) latest.current.onControl(cid, v);
+      prev = p;
+    });
+  }, [open, project, moduleId]);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} title="Golfvorm tekenen, bank, uit een sample (Page 4 van de CMI)"
+        style={{ position: 'fixed', right: pxPerMm * 2, top: pxPerMm * 2, font: `600 ${pxPerMm * 2.6}px/1 system-ui, sans-serif`, cursor: 'pointer',
+          color: '#fff', background: 'rgba(11,13,18,0.85)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: pxPerMm, padding: `${pxPerMm}px ${pxPerMm * 2}px` }}>
+        Page 4
+      </button>
+      {open && <CmiPage4 patchId={patchId} owner={moduleId} voices={[moduleId]} onClose={() => setOpen(false)} />}
     </>
   );
 }

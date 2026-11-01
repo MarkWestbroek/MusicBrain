@@ -130,6 +130,14 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-11-01 — MMB CMI: Page 4 in de plugin
+<!-- EN: MMB CMI: the CMI page (draw harmonics, bank, from sample) inside the plugin -->
+- De losse MMB CMI heeft rechtsboven **Page 4**: harmonischen tekenen, de
+  bank, een klank uit een sample, zoals in de editor. Wat je maakt klinkt
+  meteen en gaat mee in het Logic-project.
+- `MmbPluginCheck ... attr=<naam>:<bestand>` zet een eigenschap in de
+  toestand (zo is dit getest).
+
 ### 2026-11-01 — MMB RINGS: parameter Uitgang (Stereo of Mix)
 <!-- EN: MMB RINGS: output parameter, Stereo (odd/even) or Mix -->
 - De losse RINGS-plugin heeft een parameter **Uitgang**. Stereo (standaard,
